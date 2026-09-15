@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { TicketStatus, UserRole } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuditLogService } from "../audit-log/audit-log.service";
+import { NotificationsService } from "../notifications/notifications.service";
 import { CreateTicketDto } from "./dto/create-ticket.dto";
 
 const STAFF_ROLES: UserRole[] = [UserRole.ADMIN, UserRole.SUPPORT];
@@ -11,6 +12,7 @@ export class TicketsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditLog: AuditLogService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async listMine(userId: string) {
@@ -93,6 +95,16 @@ export class TicketsService {
           : {},
       }),
     ]);
+
+    if (isStaff) {
+      await this.notifications.notify(
+        ticket.userId,
+        "ticket.reply",
+        "Nouvelle réponse du support",
+        `Sujet : ${ticket.subject}`,
+        `/dashboard/support/${ticket.id}`,
+      );
+    }
     return message;
   }
 

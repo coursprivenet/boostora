@@ -193,3 +193,13 @@ export interface TicketAdminSummary extends TicketSummary {
 export interface TicketDetail extends TicketSummary {
   messages: TicketMessage[];
 }
+
+export interface NotificationItem {
+  id: string;
+  type: string;
+  title: string;
+  body: string | null;
+  link: string | null;
+  isRead: boolean;
+  createdAt: string;
+}

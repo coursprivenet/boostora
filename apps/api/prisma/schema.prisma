@@ -62,6 +62,7 @@ model User {
   orders         Order[]
   tickets        Ticket[]
   ticketMessages TicketMessage[]
+  notifications  Notification[]
 
   @@map("users")
 }
@@ -352,4 +353,26 @@ model TicketMessage {
   createdAt DateTime @default(now())
 
   @@map("ticket_messages")
+}
+
+/// Free-form `type` (not an enum) rather than a rigid list -- new notification kinds are
+/// expected to keep showing up (order events, ticket replies, future coupon/promo pings)
+/// and a string avoids a migration each time one is added.
+model Notification {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  type  String
+  title String
+  body  String?
+  /// Relative in-app path to open when clicked, e.g. /dashboard/orders/xyz
+  link  String?
+
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([userId, isRead])
+  @@map("notifications")
 }

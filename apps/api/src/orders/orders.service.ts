@@ -16,6 +16,7 @@ import { PanelFollowsApiError } from "../panelfollows/panelfollows.types";
 import { mapProviderOrderStatus } from "../panelfollows/order-status-mapper";
 import { AuditLogService } from "../audit-log/audit-log.service";
 import { CouponsService } from "../coupons/coupons.service";
+import { NotificationsService } from "../notifications/notifications.service";
 import { CreateOrderDto } from "./dto/create-order.dto";
 import { SendOtpDto } from "./dto/send-otp.dto";
 import { ConfirmPaymentDto } from "./dto/confirm-payment.dto";
@@ -33,6 +34,7 @@ export class OrdersService {
     private readonly panelFollows: PanelFollowsClient,
     private readonly auditLog: AuditLogService,
     private readonly coupons: CouponsService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async listMine(userId: string) {
@@ -285,6 +287,13 @@ export class OrdersService {
     ]);
 
     this.logger.log(`Order ${order.id} paid via Yengapay (transactionId=${result.transactionId})`);
+    await this.notifications.notify(
+      userId,
+      "order.paid",
+      "Paiement confirmé",
+      "Ta commande a été payée et va être transmise au fournisseur.",
+      `/dashboard/orders/${order.id}`,
+    );
 
     if (order.couponId) {
       await this.coupons.recordRedemption(order.couponId, userId, order.id, order.discountXof.toString());
@@ -325,6 +334,15 @@ export class OrdersService {
         where: { id: payment.orderId },
         select: { couponId: true, discountXof: true, userId: true },
       });
+      if (order) {
+        await this.notifications.notify(
+          order.userId,
+          "order.paid",
+          "Paiement confirmé",
+          "Ta commande a été payée et va être transmise au fournisseur.",
+          `/dashboard/orders/${payment.orderId}`,
+        );
+      }
       if (order?.couponId) {
         await this.coupons.recordRedemption(
           order.couponId,
@@ -404,6 +422,16 @@ export class OrdersService {
         },
       });
       this.logger.error(`Provider submission failed for order ${order.id}: ${(err as Error).message}`);
+
+      if (!isRetryable) {
+        await this.notifications.notify(
+          order.userId,
+          "order.submit_failed",
+          "Un problème est survenu avec ta commande",
+          "Notre équipe a été alertée et va régulariser ça rapidement.",
+          `/dashboard/orders/${order.id}`,
+        );
+      }
     }
   }
 
@@ -432,6 +460,19 @@ export class OrdersService {
     }
 
     await this.prisma.order.update({ where: { id: order.id }, data });
+
+    const NOTIFY_MESSAGES: Partial<Record<OrderStatus, [string, string]>> = {
+      [OrderStatus.COMPLETED]: ["Commande terminée", "Ta commande a été livrée avec succès."],
+      [OrderStatus.PARTIAL]: [
+        "Commande partiellement livrée",
+        "Une partie a été livrée, le reste a été remboursé par le fournisseur.",
+      ],
+      [OrderStatus.CANCELLED]: ["Commande annulée", "Ta commande a été annulée par le fournisseur."],
+    };
+    if (mapped && NOTIFY_MESSAGES[mapped]) {
+      const [title, body] = NOTIFY_MESSAGES[mapped]!;
+      await this.notifications.notify(order.userId, `order.${mapped.toLowerCase()}`, title, body, `/dashboard/orders/${order.id}`);
+    }
   }
 
   async applyRefillUpdate(providerRefillId: number, status: string) {
@@ -445,15 +486,29 @@ export class OrdersService {
 
     const normalized = status.toLowerCase();
     if (normalized === "completed" || normalized === "done") {
-      await this.prisma.order.update({
+      const order = await this.prisma.order.update({
         where: { id: refill.orderId },
         data: { orderStatus: OrderStatus.REFILL_DONE },
       });
+      await this.notifications.notify(
+        order.userId,
+        "order.refill_done",
+        "Refill effectué",
+        "Le fournisseur a complété ton refill.",
+        `/dashboard/orders/${order.id}`,
+      );
     } else if (normalized === "rejected" || normalized === "failed") {
-      await this.prisma.order.update({
+      const order = await this.prisma.order.update({
         where: { id: refill.orderId },
         data: { orderStatus: OrderStatus.REFILL_FAILED },
       });
+      await this.notifications.notify(
+        order.userId,
+        "order.refill_failed",
+        "Refill refusé",
+        "Le fournisseur a refusé la demande de refill.",
+        `/dashboard/orders/${order.id}`,
+      );
     }
   }
 
