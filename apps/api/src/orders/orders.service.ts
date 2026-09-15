@@ -12,6 +12,7 @@ import { YengapayClient } from "../yengapay/yengapay.client";
 import { YengapayApiError } from "../yengapay/yengapay.types";
 import { PanelFollowsClient } from "../panelfollows/panelfollows.client";
 import { PanelFollowsApiError } from "../panelfollows/panelfollows.types";
+import { mapProviderOrderStatus } from "../panelfollows/order-status-mapper";
 import { CreateOrderDto } from "./dto/create-order.dto";
 import { SendOtpDto } from "./dto/send-otp.dto";
 import { ConfirmPaymentDto } from "./dto/confirm-payment.dto";
@@ -305,6 +306,56 @@ export class OrdersService {
         },
       });
       this.logger.error(`Provider submission failed for order ${order.id}: ${(err as Error).message}`);
+    }
+  }
+
+  /**
+   * Applies a provider-side order status update, from either the PanelFollows webhook
+   * or the polling reconciliation sweep — same shape, same logic, so the two sources
+   * can never drift into inconsistent mapping rules.
+   */
+  async applyProviderOrderUpdate(
+    providerOrderId: number,
+    raw: { status: string; start_count?: number | null; remains?: number | null },
+  ) {
+    const order = await this.prisma.order.findFirst({ where: { providerOrderId } });
+    if (!order) {
+      this.logger.warn(`No local order for PanelFollows providerOrderId=${providerOrderId}`);
+      return;
+    }
+
+    const mapped = mapProviderOrderStatus(raw.status);
+    const data: Record<string, unknown> = { providerStatusRaw: raw.status };
+    if (raw.start_count != null) data.startCount = raw.start_count;
+    if (raw.remains != null) data.remains = raw.remains;
+    if (mapped) {
+      data.orderStatus = mapped;
+      if (mapped === OrderStatus.COMPLETED) data.completedAt = new Date();
+    }
+
+    await this.prisma.order.update({ where: { id: order.id }, data });
+  }
+
+  async applyRefillUpdate(providerRefillId: number, status: string) {
+    const refill = await this.prisma.refillRequest.findFirst({ where: { providerRefillId } });
+    if (!refill) {
+      this.logger.warn(`No local refill request for providerRefillId=${providerRefillId}`);
+      return;
+    }
+
+    await this.prisma.refillRequest.update({ where: { id: refill.id }, data: { status } });
+
+    const normalized = status.toLowerCase();
+    if (normalized === "completed" || normalized === "done") {
+      await this.prisma.order.update({
+        where: { id: refill.orderId },
+        data: { orderStatus: OrderStatus.REFILL_DONE },
+      });
+    } else if (normalized === "rejected" || normalized === "failed") {
+      await this.prisma.order.update({
+        where: { id: refill.orderId },
+        data: { orderStatus: OrderStatus.REFILL_FAILED },
+      });
     }
   }
 

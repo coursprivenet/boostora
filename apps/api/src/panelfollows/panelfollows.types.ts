@@ -72,6 +72,44 @@ export interface PanelFollowsErrorBody {
   };
 }
 
+/** Signed webhook envelope — see "What we send" at panelfollows.com/en/api-docs#webhooks */
+export interface PanelFollowsWebhookEvent {
+  object: "event";
+  id: string;
+  type:
+    | "order.created"
+    | "order.processing"
+    | "order.completed"
+    | "order.partial"
+    | "order.canceled"
+    | "order.updated"
+    | "refill.created"
+    | "refill.updated"
+    | "account.low_balance";
+  created_at: string;
+  data: {
+    previous_status?: string;
+    order?: {
+      object: "order";
+      id: number;
+      status: string;
+      status_label?: string;
+      service: number;
+      quantity: number;
+      start_count?: number | null;
+      remains?: number | null;
+      charge: string;
+      currency: string;
+    };
+    refill?: {
+      object: "refill";
+      id: number;
+      order: number;
+      status: string;
+    };
+  };
+}
+
 export class PanelFollowsApiError extends Error {
   constructor(
     public readonly code: string,
