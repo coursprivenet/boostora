@@ -33,6 +33,26 @@ export interface PanelFollowsService {
   updated_at: string;
 }
 
+export interface PanelFollowsOrder {
+  object: "order";
+  id: number;
+  status: string;
+  status_label?: string;
+  service: number;
+  quantity: number;
+  start_count?: number | null;
+  remains?: number | null;
+  charge: string;
+  currency: string;
+}
+
+export interface PanelFollowsRefill {
+  object: "refill";
+  id: number;
+  order: number;
+  status: string;
+}
+
 export interface PanelFollowsListResponse<T> {
   object: "list";
   data: T[];

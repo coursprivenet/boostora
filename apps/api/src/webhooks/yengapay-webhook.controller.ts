@@ -1,18 +1,12 @@
-import {
-  Controller,
-  Headers,
-  Logger,
-  Post,
-  Req,
-  UnauthorizedException,
-} from "@nestjs/common";
+import { Controller, Headers, Logger, Post, Req, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { RawBodyRequest } from "@nestjs/common";
 import { Request } from "express";
 import * as crypto from "crypto";
-import { OrderStatus, PaymentStatus, WebhookSource } from "@prisma/client";
+import { WebhookSource } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { Public } from "../auth/decorators/public.decorator";
+import { OrdersService } from "../orders/orders.service";
 import { YengapayPaymentWebhook } from "../yengapay/yengapay.types";
 
 @Controller("webhooks/yengapay")
@@ -22,6 +16,7 @@ export class YengapayWebhookController {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly orders: OrdersService,
     config: ConfigService,
   ) {
     this.webhookSecret = config.get<string>("YENGAPAY_WEBHOOK_SECRET")!;
@@ -86,35 +81,12 @@ export class YengapayWebhookController {
     });
 
     // reference is the order id we sent as `reference` when creating the payment intent.
-    const payment = await this.prisma.payment.findUnique({ where: { reference: body.reference } });
-    if (!payment) {
-      this.logger.warn(`Yengapay webhook for unknown reference=${body.reference}`);
-      return;
+    const { found } = await this.orders.confirmPaymentFromWebhook(
+      body.reference,
+      body as unknown as object,
+    );
+    if (found) {
+      this.logger.log(`Order confirmed PAID via webhook (transId=${externalEventId})`);
     }
-
-    if (payment.status === PaymentStatus.PAID) {
-      // Already confirmed synchronously via the /pay response — nothing to do.
-      return;
-    }
-
-    await this.prisma.$transaction([
-      this.prisma.payment.update({
-        where: { id: payment.id },
-        data: {
-          status: PaymentStatus.PAID,
-          rawWebhookPayload: body as unknown as object,
-        },
-      }),
-      this.prisma.order.update({
-        where: { id: payment.orderId },
-        data: {
-          paymentStatus: PaymentStatus.PAID,
-          orderStatus: OrderStatus.PAID,
-          paidAt: new Date(),
-        },
-      }),
-    ]);
-
-    this.logger.log(`Order ${payment.orderId} confirmed PAID via webhook (transId=${externalEventId})`);
   }
 }

@@ -6,6 +6,8 @@ import { firstValueFrom } from "rxjs";
 import {
   PanelFollowsErrorBody,
   PanelFollowsListResponse,
+  PanelFollowsOrder,
+  PanelFollowsRefill,
   PanelFollowsService,
   PanelFollowsApiError,
 } from "./panelfollows.types";
@@ -62,6 +64,46 @@ export class PanelFollowsClient {
     return this.request<PanelFollowsService>({
       method: "GET",
       url: `/services/${providerServiceId}`,
+    });
+  }
+
+  /**
+   * Creates a provider order. `extraFields` covers service.fields entries beyond
+   * link/quantity (comments, runs/interval for drip-feed, username, ...) — we do not
+   * yet collect those in our own checkout form, so only base services (link+quantity)
+   * are actually orderable end-to-end today. Passing an Idempotency-Key is mandatory
+   * here: it is what makes a retried submission after a network drop safe.
+   */
+  async createOrder(
+    params: { service: number; link: string; quantity: number; [extraField: string]: unknown },
+    idempotencyKey: string,
+  ): Promise<PanelFollowsOrder> {
+    return this.request<PanelFollowsOrder>({
+      method: "POST",
+      url: "/orders",
+      data: params,
+      headers: { "Idempotency-Key": idempotencyKey },
+    });
+  }
+
+  async getOrder(providerOrderId: number): Promise<PanelFollowsOrder> {
+    return this.request<PanelFollowsOrder>({
+      method: "GET",
+      url: `/orders/${providerOrderId}`,
+    });
+  }
+
+  async cancelOrder(providerOrderId: number): Promise<unknown> {
+    return this.request<unknown>({
+      method: "POST",
+      url: `/orders/${providerOrderId}/cancel`,
+    });
+  }
+
+  async refillOrder(providerOrderId: number): Promise<PanelFollowsRefill> {
+    return this.request<PanelFollowsRefill>({
+      method: "POST",
+      url: `/orders/${providerOrderId}/refill`,
     });
   }
 

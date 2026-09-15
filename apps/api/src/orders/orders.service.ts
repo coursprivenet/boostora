@@ -10,9 +10,13 @@ import { PrismaService } from "../prisma/prisma.service";
 import { CatalogService } from "../catalog/catalog.service";
 import { YengapayClient } from "../yengapay/yengapay.client";
 import { YengapayApiError } from "../yengapay/yengapay.types";
+import { PanelFollowsClient } from "../panelfollows/panelfollows.client";
+import { PanelFollowsApiError } from "../panelfollows/panelfollows.types";
 import { CreateOrderDto } from "./dto/create-order.dto";
 import { SendOtpDto } from "./dto/send-otp.dto";
 import { ConfirmPaymentDto } from "./dto/confirm-payment.dto";
+
+const RETRYABLE_PANELFOLLOWS_HTTP_STATUSES = [429, 502, 503];
 
 @Injectable()
 export class OrdersService {
@@ -22,6 +26,7 @@ export class OrdersService {
     private readonly prisma: PrismaService,
     private readonly catalog: CatalogService,
     private readonly yengapay: YengapayClient,
+    private readonly panelFollows: PanelFollowsClient,
   ) {}
 
   async listMine(userId: string) {
@@ -203,7 +208,200 @@ export class OrdersService {
     ]);
 
     this.logger.log(`Order ${order.id} paid via Yengapay (transactionId=${result.transactionId})`);
+
+    await this.ensureSubmittedToProvider(order.id);
     return result;
+  }
+
+  /**
+   * Called from the Yengapay webhook once its signature is verified. Idempotent:
+   * marking PAID and submitting to PanelFollows both no-op if already done — the
+   * webhook may well arrive after the synchronous /pay confirmation already handled it.
+   */
+  async confirmPaymentFromWebhook(reference: string, rawWebhookPayload: object) {
+    const payment = await this.prisma.payment.findUnique({ where: { reference } });
+    if (!payment) {
+      this.logger.warn(`Yengapay webhook for unknown reference=${reference}`);
+      return { found: false as const };
+    }
+
+    if (payment.status !== PaymentStatus.PAID) {
+      await this.prisma.$transaction([
+        this.prisma.payment.update({
+          where: { id: payment.id },
+          data: { status: PaymentStatus.PAID, rawWebhookPayload },
+        }),
+        this.prisma.order.update({
+          where: { id: payment.orderId },
+          data: {
+            paymentStatus: PaymentStatus.PAID,
+            orderStatus: OrderStatus.PAID,
+            paidAt: new Date(),
+          },
+        }),
+      ]);
+    } else {
+      // Already confirmed synchronously — still record the webhook payload for audit.
+      await this.prisma.payment.update({ where: { id: payment.id }, data: { rawWebhookPayload } });
+    }
+
+    await this.ensureSubmittedToProvider(payment.orderId);
+    return { found: true as const };
+  }
+
+  /**
+   * Submits a PAID order to PanelFollows. Safe to call more than once: no-ops if
+   * providerOrderId is already set. Does not retry on failure — a queue/retry sweep is
+   * a separate concern (webhook automation phase); this just records the outcome so a
+   * later retry pass has something to act on.
+   */
+  async ensureSubmittedToProvider(orderId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: { catalogService: { include: { providerService: true } } },
+    });
+    if (!order) return;
+    if (order.providerOrderId != null) return;
+    if (order.orderStatus === OrderStatus.SUBMITTING) return;
+
+    await this.prisma.order.update({
+      where: { id: order.id },
+      data: { orderStatus: OrderStatus.SUBMITTING },
+    });
+
+    try {
+      const providerOrder = await this.panelFollows.createOrder(
+        {
+          service: order.catalogService.providerService.providerServiceId,
+          link: order.targetLink,
+          quantity: order.quantity,
+        },
+        order.id,
+      );
+
+      await this.prisma.order.update({
+        where: { id: order.id },
+        data: {
+          providerOrderId: providerOrder.id,
+          providerStatusRaw: providerOrder.status,
+          orderStatus: OrderStatus.QUEUED,
+          submittedAt: new Date(),
+        },
+      });
+      this.logger.log(`Order ${order.id} submitted to PanelFollows as #${providerOrder.id}`);
+    } catch (err) {
+      const isRetryable =
+        err instanceof PanelFollowsApiError &&
+        RETRYABLE_PANELFOLLOWS_HTTP_STATUSES.includes(err.httpStatus);
+
+      await this.prisma.order.update({
+        where: { id: order.id },
+        data: {
+          orderStatus: isRetryable ? OrderStatus.RETRY_SUBMIT : OrderStatus.SUBMIT_FAILED,
+          errorLog:
+            err instanceof PanelFollowsApiError
+              ? { code: err.code, message: err.message, httpStatus: err.httpStatus }
+              : { message: (err as Error).message },
+        },
+      });
+      this.logger.error(`Provider submission failed for order ${order.id}: ${(err as Error).message}`);
+    }
+  }
+
+  async requestCancel(userId: string, orderId: string) {
+    const order = await this.getOwnedOrderWithProviderInfoOrThrow(userId, orderId);
+
+    if (order.providerOrderId == null) {
+      throw new BadRequestException("Commande non encore soumise au fournisseur");
+    }
+    if (!order.catalogService.providerService.cancelSupported) {
+      throw new BadRequestException("Annulation non supportée pour ce service");
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.order.update({
+        where: { id: order.id },
+        data: { orderStatus: OrderStatus.CANCEL_REQUESTED },
+      }),
+      this.prisma.cancelRequest.create({ data: { orderId: order.id, status: "requested" } }),
+    ]);
+
+    try {
+      await this.panelFollows.cancelOrder(order.providerOrderId);
+      await this.prisma.order.update({
+        where: { id: order.id },
+        data: { orderStatus: OrderStatus.CANCELLED },
+      });
+      return { status: "cancelled" };
+    } catch (err) {
+      await this.prisma.order.update({
+        where: { id: order.id },
+        data: { orderStatus: OrderStatus.CANCEL_REJECTED },
+      });
+      if (err instanceof PanelFollowsApiError) {
+        throw new BadRequestException(`Annulation refusée: ${err.message}`);
+      }
+      throw err;
+    }
+  }
+
+  async requestRefill(userId: string, orderId: string) {
+    const order = await this.getOwnedOrderWithProviderInfoOrThrow(userId, orderId);
+
+    if (order.orderStatus !== OrderStatus.COMPLETED) {
+      throw new BadRequestException("Le refill n'est possible que pour une commande terminée");
+    }
+    if (!order.catalogService.providerService.refillSupported) {
+      throw new BadRequestException("Refill non supporté pour ce service");
+    }
+    if (order.providerOrderId == null) {
+      throw new BadRequestException("Commande non soumise au fournisseur");
+    }
+
+    const refillRow = await this.prisma.refillRequest.create({
+      data: { orderId: order.id, status: "requested" },
+    });
+    await this.prisma.order.update({
+      where: { id: order.id },
+      data: { orderStatus: OrderStatus.REFILL_REQUESTED },
+    });
+
+    try {
+      const result = await this.panelFollows.refillOrder(order.providerOrderId);
+      await this.prisma.refillRequest.update({
+        where: { id: refillRow.id },
+        data: { providerRefillId: result.id, status: result.status },
+      });
+      // Completion is asynchronous on PanelFollows' side (GET /refills/{id} or a
+      // refill.updated webhook/event) — left as REFILL_REQUESTED until that lands.
+      return { status: "requested", providerRefillId: result.id };
+    } catch (err) {
+      await this.prisma.$transaction([
+        this.prisma.refillRequest.update({
+          where: { id: refillRow.id },
+          data: { status: "failed" },
+        }),
+        this.prisma.order.update({
+          where: { id: order.id },
+          data: { orderStatus: OrderStatus.REFILL_FAILED },
+        }),
+      ]);
+      if (err instanceof PanelFollowsApiError) {
+        throw new BadRequestException(`Refill refusé: ${err.message}`);
+      }
+      throw err;
+    }
+  }
+
+  private async getOwnedOrderWithProviderInfoOrThrow(userId: string, orderId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: { catalogService: { include: { providerService: true } } },
+    });
+    if (!order || order.userId !== userId) {
+      throw new NotFoundException("Commande introuvable");
+    }
+    return order;
   }
 
   private async getPayableOrderOrThrow(userId: string, orderId: string) {

@@ -23,6 +23,13 @@ export class OrdersController {
     return this.orders.listAdmin();
   }
 
+  /** Manual recovery for orders stuck in RETRY_SUBMIT/SUBMIT_FAILED — no-ops if already submitted. */
+  @Roles(UserRole.ADMIN)
+  @Post(":id/submit-to-provider")
+  submitToProvider(@Param("id") id: string) {
+    return this.orders.ensureSubmittedToProvider(id);
+  }
+
   @Get(":id")
   getOne(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string) {
     return this.orders.getOneMine(user.id, id);
@@ -49,5 +56,15 @@ export class OrdersController {
     @Body() dto: ConfirmPaymentDto,
   ) {
     return this.orders.confirmPayment(user.id, id, dto);
+  }
+
+  @Post(":id/cancel")
+  requestCancel(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string) {
+    return this.orders.requestCancel(user.id, id);
+  }
+
+  @Post(":id/refill")
+  requestRefill(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string) {
+    return this.orders.requestRefill(user.id, id);
   }
 }
