@@ -48,3 +48,25 @@ const STATUS_TONES: Record<string, "neutral" | "warning" | "success" | "danger">
 export function orderStatusTone(status: string) {
   return STATUS_TONES[status] ?? "neutral";
 }
+
+const TICKET_STATUS_LABELS: Record<string, string> = {
+  OPEN: "Ouvert",
+  IN_PROGRESS: "En cours",
+  RESOLVED: "Résolu",
+  CLOSED: "Fermé",
+};
+
+const TICKET_STATUS_TONES: Record<string, "neutral" | "warning" | "success" | "danger"> = {
+  OPEN: "warning",
+  IN_PROGRESS: "neutral",
+  RESOLVED: "success",
+  CLOSED: "neutral",
+};
+
+export function ticketStatusLabel(status: string): string {
+  return TICKET_STATUS_LABELS[status] ?? status;
+}
+
+export function ticketStatusTone(status: string) {
+  return TICKET_STATUS_TONES[status] ?? "neutral";
+}

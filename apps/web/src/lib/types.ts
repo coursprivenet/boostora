@@ -166,3 +166,30 @@ export interface ExchangeRateRow {
   rateXofPerUsd: string;
   effectiveFrom: string;
 }
+
+export type TicketStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
+
+export interface TicketMessage {
+  id: string;
+  body: string;
+  createdAt: string;
+  author: { id: string; email: string; role: UserRole };
+}
+
+export interface TicketSummary {
+  id: string;
+  subject: string;
+  status: TicketStatus;
+  createdAt: string;
+  updatedAt: string;
+  order: { id: string; catalogService: { name: string } } | null;
+}
+
+export interface TicketAdminSummary extends TicketSummary {
+  user: { email: string };
+  _count: { messages: number };
+}
+
+export interface TicketDetail extends TicketSummary {
+  messages: TicketMessage[];
+}

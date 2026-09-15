@@ -59,7 +59,9 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  orders Order[]
+  orders         Order[]
+  tickets        Ticket[]
+  ticketMessages TicketMessage[]
 
   @@map("users")
 }
@@ -187,6 +189,7 @@ model Order {
   refillRequests    RefillRequest[]
   cancelRequests    CancelRequest[]
   couponRedemption  CouponRedemption?
+  tickets           Ticket[]
 
   @@index([userId])
   @@index([orderStatus])
@@ -309,4 +312,44 @@ model AuditLog {
   createdAt DateTime @default(now())
 
   @@map("audit_logs")
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+model Ticket {
+  id      String @id @default(cuid())
+  userId  String
+  user    User   @relation(fields: [userId], references: [id])
+  orderId String?
+  order   Order?  @relation(fields: [orderId], references: [id])
+
+  subject String
+  status  TicketStatus @default(OPEN)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages TicketMessage[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("tickets")
+}
+
+model TicketMessage {
+  id           String @id @default(cuid())
+  ticketId     String
+  ticket       Ticket @relation(fields: [ticketId], references: [id])
+  authorUserId String
+  author       User   @relation(fields: [authorUserId], references: [id])
+
+  body      String
+  createdAt DateTime @default(now())
+
+  @@map("ticket_messages")
 }

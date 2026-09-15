@@ -22,6 +22,21 @@ export function Navbar() {
               Mes commandes
             </Link>
           )}
+          {!loading && user && (
+            <Link href="/dashboard/support" className="hover:text-ink-900">
+              Support
+            </Link>
+          )}
+          {!loading && (user?.role === "ADMIN" || user?.role === "SUPPORT") && (
+            <Link href="/support" className="hover:text-ink-900">
+              Support (staff)
+            </Link>
+          )}
+          {!loading && user?.role === "ADMIN" && (
+            <Link href="/admin" className="hover:text-ink-900">
+              Admin
+            </Link>
+          )}
           {!loading && !user && (
             <>
               <Link href="/login" className="hover:text-ink-900">

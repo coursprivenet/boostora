@@ -1,4 +1,4 @@
-import { orderStatusLabel, orderStatusTone } from "@/lib/format";
+import { orderStatusLabel, orderStatusTone, ticketStatusLabel, ticketStatusTone } from "@/lib/format";
 
 const TONE_CLASSES: Record<string, string> = {
   neutral: "bg-ink-100 text-ink-600",
@@ -14,6 +14,17 @@ export function StatusBadge({ status }: { status: string }) {
       className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${TONE_CLASSES[tone]}`}
     >
       {orderStatusLabel(status)}
+    </span>
+  );
+}
+
+export function TicketStatusBadge({ status }: { status: string }) {
+  const tone = ticketStatusTone(status);
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${TONE_CLASSES[tone]}`}
+    >
+      {ticketStatusLabel(status)}
     </span>
   );
 }
