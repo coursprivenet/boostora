@@ -20,6 +20,7 @@ import { UsersModule } from "./users/users.module";
 import { AdminModule } from "./admin/admin.module";
 import { AuditLogModule } from "./audit-log/audit-log.module";
 import { InternalCronModule } from "./internal-cron/internal-cron.module";
+import { CouponsModule } from "./coupons/coupons.module";
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { InternalCronModule } from "./internal-cron/internal-cron.module";
     AdminModule,
     AuditLogModule,
     InternalCronModule,
+    CouponsModule,
   ],
   providers: [
     // Runs before auth so a brute-force burst is rejected before it even reaches the DB-backed JWT check.

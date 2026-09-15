@@ -49,7 +49,28 @@ export interface CreateOrderResponse {
   orderId: string;
   expiresAt: string;
   priceClientXof: string;
+  discountXof: string;
   availableOperators: YengapayOperator[];
+}
+
+export type CouponDiscountType = "PERCENT" | "FIXED_XOF";
+
+export interface Coupon {
+  id: string;
+  code: string;
+  discountType: CouponDiscountType;
+  value: string;
+  maxUses: number | null;
+  usedCount: number;
+  minOrderXof: string | null;
+  expiresAt: string | null;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface CouponPreview {
+  discountXof: string;
+  finalPriceXof: string;
 }
 
 export interface OrderSummary {

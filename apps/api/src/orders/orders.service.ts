@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { OrderStatus, PaymentStatus } from "@prisma/client";
+import Decimal from "decimal.js";
 import { PrismaService } from "../prisma/prisma.service";
 import { CatalogService } from "../catalog/catalog.service";
 import { YengapayClient } from "../yengapay/yengapay.client";
@@ -14,6 +15,7 @@ import { PanelFollowsClient } from "../panelfollows/panelfollows.client";
 import { PanelFollowsApiError } from "../panelfollows/panelfollows.types";
 import { mapProviderOrderStatus } from "../panelfollows/order-status-mapper";
 import { AuditLogService } from "../audit-log/audit-log.service";
+import { CouponsService } from "../coupons/coupons.service";
 import { CreateOrderDto } from "./dto/create-order.dto";
 import { SendOtpDto } from "./dto/send-otp.dto";
 import { ConfirmPaymentDto } from "./dto/confirm-payment.dto";
@@ -30,6 +32,7 @@ export class OrdersService {
     private readonly yengapay: YengapayClient,
     private readonly panelFollows: PanelFollowsClient,
     private readonly auditLog: AuditLogService,
+    private readonly coupons: CouponsService,
   ) {}
 
   async listMine(userId: string) {
@@ -90,28 +93,46 @@ export class OrdersService {
 
     const priced = await this.catalog.computeOrderPrice(dto.catalogServiceId, dto.quantity);
 
+    let couponId: string | null = null;
+    let finalPriceXof = priced.priceClientXof;
+    let discountXof = new Decimal(0);
+    if (dto.couponCode) {
+      const discount = await this.coupons.validateAndComputeDiscount(
+        dto.couponCode,
+        userId,
+        priced.priceClientXof,
+      );
+      couponId = discount.couponId;
+      finalPriceXof = discount.finalPriceXof;
+      discountXof = discount.discountXof;
+    }
+    // Margin absorbs the discount — it's real money we're giving up, not the provider's.
+    const marginAfterDiscount = priced.marginXof.minus(discountXof);
+
     const order = await this.prisma.order.create({
       data: {
         userId,
         catalogServiceId: dto.catalogServiceId,
         targetLink: dto.targetLink,
         quantity: dto.quantity,
-        priceClientXof: priced.priceClientXof.toString(),
+        priceClientXof: finalPriceXof.toString(),
         costProviderUsd: priced.costProviderUsd.toString(),
         fxRateUsed: priced.fxRateUsed.toString(),
-        marginXof: priced.marginXof.toString(),
+        marginXof: marginAfterDiscount.toString(),
+        couponId,
+        discountXof: discountXof.toString(),
       },
     });
 
     try {
       const init = await this.yengapay.initDirectPayment({
-        amount: priced.priceClientXof.toNumber(),
+        amount: finalPriceXof.toNumber(),
         reference: order.id,
         articles: [
           {
             title: priced.catalogService.name,
             description: priced.catalogService.description ?? priced.catalogService.name,
-            price: priced.priceClientXof.toNumber(),
+            price: finalPriceXof.toNumber(),
           },
         ],
       });
@@ -121,7 +142,7 @@ export class OrdersService {
           orderId: order.id,
           reference: order.id,
           yengapayPaymentIntentId: init.paymentIntentId,
-          amountXof: priced.priceClientXof.toString(),
+          amountXof: finalPriceXof.toString(),
           expiresAt: new Date(init.expiresAt),
           rawInitResponse: init as unknown as object,
         },
@@ -130,7 +151,8 @@ export class OrdersService {
       return {
         orderId: order.id,
         expiresAt: init.expiresAt,
-        priceClientXof: priced.priceClientXof.toString(),
+        priceClientXof: finalPriceXof.toString(),
+        discountXof: discountXof.toString(),
         availableOperators: init.availableOperators,
       };
     } catch (err) {
@@ -264,6 +286,9 @@ export class OrdersService {
 
     this.logger.log(`Order ${order.id} paid via Yengapay (transactionId=${result.transactionId})`);
 
+    if (order.couponId) {
+      await this.coupons.recordRedemption(order.couponId, userId, order.id, order.discountXof.toString());
+    }
     await this.ensureSubmittedToProvider(order.id);
     return result;
   }
@@ -295,6 +320,19 @@ export class OrdersService {
           },
         }),
       ]);
+
+      const order = await this.prisma.order.findUnique({
+        where: { id: payment.orderId },
+        select: { couponId: true, discountXof: true, userId: true },
+      });
+      if (order?.couponId) {
+        await this.coupons.recordRedemption(
+          order.couponId,
+          order.userId,
+          payment.orderId,
+          order.discountXof.toString(),
+        );
+      }
     } else {
       // Already confirmed synchronously — still record the webhook payload for audit.
       await this.prisma.payment.update({ where: { id: payment.id }, data: { rawWebhookPayload } });

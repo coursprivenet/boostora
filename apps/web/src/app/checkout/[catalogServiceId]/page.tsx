@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useRequireAuth } from "@/lib/use-require-auth";
 import { api, ApiError } from "@/lib/api";
-import { CatalogItem, CreateOrderResponse, YengapayOperator } from "@/lib/types";
+import { CatalogItem, CouponPreview, CreateOrderResponse, YengapayOperator } from "@/lib/types";
 import { formatXof } from "@/lib/format";
 import { Input } from "@/components/Input";
 import { Button } from "@/components/Button";
@@ -30,9 +30,33 @@ export default function CheckoutPage() {
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
 
+  const [couponCode, setCouponCode] = useState("");
+  const [couponPreview, setCouponPreview] = useState<CouponPreview | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [couponChecking, setCouponChecking] = useState(false);
+
   const [step, setStep] = useState<Step>({ kind: "form" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  async function checkCoupon() {
+    if (!token || !item || !couponCode.trim()) return;
+    setCouponChecking(true);
+    setCouponError(null);
+    setCouponPreview(null);
+    try {
+      const preview = await api.post<CouponPreview>(
+        "/coupons/preview",
+        { code: couponCode.trim(), catalogServiceId: item.id, quantity },
+        token,
+      );
+      setCouponPreview(preview);
+    } catch (err) {
+      setCouponError(err instanceof ApiError ? err.message : "Code invalide");
+    } finally {
+      setCouponChecking(false);
+    }
+  }
 
   useEffect(() => {
     api
@@ -52,7 +76,12 @@ export default function CheckoutPage() {
     try {
       const created = await api.post<CreateOrderResponse>(
         "/orders",
-        { catalogServiceId: item.id, targetLink, quantity },
+        {
+          catalogServiceId: item.id,
+          targetLink,
+          quantity,
+          couponCode: couponPreview ? couponCode.trim() : undefined,
+        },
         token,
       );
       setStep({ kind: "operator", created });
@@ -136,8 +165,44 @@ export default function CheckoutPage() {
               min={item.minQuantity}
               max={item.maxQuantity}
               value={quantity}
-              onChange={(e) => setQuantity(Number(e.target.value))}
+              onChange={(e) => {
+                setQuantity(Number(e.target.value));
+                setCouponPreview(null);
+              }}
             />
+
+            <div>
+              <div className="flex items-end gap-2">
+                <div className="flex-1">
+                  <Input
+                    label="Code promo (optionnel)"
+                    value={couponCode}
+                    onChange={(e) => {
+                      setCouponCode(e.target.value);
+                      setCouponPreview(null);
+                      setCouponError(null);
+                    }}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  loading={couponChecking}
+                  disabled={!couponCode.trim()}
+                  onClick={checkCoupon}
+                >
+                  Vérifier
+                </Button>
+              </div>
+              {couponError && <p className="mt-1 text-sm text-rose-600">{couponError}</p>}
+              {couponPreview && (
+                <p className="mt-1 text-sm text-emerald-600">
+                  Code valide : -{formatXof(couponPreview.discountXof)} — nouveau total{" "}
+                  {formatXof(couponPreview.finalPriceXof)}
+                </p>
+              )}
+            </div>
+
             {error && <p className="text-sm text-rose-600">{error}</p>}
             <Button type="submit" loading={busy} className="w-full">
               Continuer vers le paiement
@@ -149,6 +214,11 @@ export default function CheckoutPage() {
           <div className="flex flex-col gap-3">
             <p className="mb-1 text-sm text-ink-500">
               Total à payer : <strong className="text-ink-900">{formatXof(step.created.priceClientXof)}</strong>
+              {Number(step.created.discountXof) > 0 && (
+                <span className="ml-1 text-emerald-600">
+                  (-{formatXof(step.created.discountXof)} appliqué)
+                </span>
+              )}
             </p>
             <p className="text-sm font-medium text-ink-700">Choisis ton moyen de paiement :</p>
             {step.created.availableOperators.map((op) => (

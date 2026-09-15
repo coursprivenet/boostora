@@ -8,6 +8,7 @@ const NAV = [
   { href: "/admin", label: "Vue d'ensemble" },
   { href: "/admin/orders", label: "Commandes" },
   { href: "/admin/catalog", label: "Catalogue" },
+  { href: "/admin/coupons", label: "Coupons" },
   { href: "/admin/categories", label: "Catégories" },
   { href: "/admin/exchange-rate", label: "Taux de change" },
   { href: "/admin/users", label: "Utilisateurs" },
