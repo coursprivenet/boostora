@@ -22,16 +22,27 @@
     "@nestjs/passport": "^10.0.3",
     "@nestjs/platform-express": "^10.4.4",
     "@nestjs/schedule": "^4.1.1",
+    "@nestjs/throttler": "^6.2.1",
     "@prisma/client": "^5.19.1",
     "axios": "^1.7.7",
     "bcrypt": "^5.1.1",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
     "decimal.js": "^10.4.3",
+    "helmet": "^7.1.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"
+  },
+  "jest": {
+    "moduleFileExtensions": ["js", "json", "ts"],
+    "rootDir": "src",
+    "testRegex": ".*\\.spec\\.ts$",
+    "transform": { "^.+\\.(t|j)s$": "ts-jest" },
+    "collectCoverageFrom": ["**/*.(t|j)s"],
+    "coverageDirectory": "../coverage",
+    "testEnvironment": "node"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.4.5",

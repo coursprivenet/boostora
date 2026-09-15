@@ -1,4 +1,5 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import { AuthService } from "./auth.service";
 import { RegisterDto } from "./dto/register.dto";
 import { LoginDto } from "./dto/login.dto";
@@ -6,17 +7,22 @@ import { Public } from "./decorators/public.decorator";
 import { CurrentUser } from "./decorators/current-user.decorator";
 import { AuthenticatedUser } from "./strategies/jwt.strategy";
 
+// Credential-guessing surface — much tighter than the API-wide default.
+const AUTH_THROTTLE = { default: { limit: 10, ttl: 60_000 } };
+
 @Controller("auth")
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
   @Public()
+  @Throttle(AUTH_THROTTLE)
   @Post("register")
   register(@Body() dto: RegisterDto) {
     return this.auth.register(dto);
   }
 
   @Public()
+  @Throttle(AUTH_THROTTLE)
   @HttpCode(HttpStatus.OK)
   @Post("login")
   login(@Body() dto: LoginDto) {

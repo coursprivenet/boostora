@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Post } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import { UserRole } from "@prisma/client";
 import { Roles } from "../auth/decorators/roles.decorator";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
@@ -26,8 +27,8 @@ export class OrdersController {
   /** Manual recovery for orders stuck in RETRY_SUBMIT/SUBMIT_FAILED — no-ops if already submitted. */
   @Roles(UserRole.ADMIN)
   @Post(":id/submit-to-provider")
-  submitToProvider(@Param("id") id: string) {
-    return this.orders.ensureSubmittedToProvider(id);
+  submitToProvider(@Param("id") id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.orders.ensureSubmittedToProvider(id, user.id);
   }
 
   @Get(":id")
@@ -35,6 +36,8 @@ export class OrdersController {
     return this.orders.getOneMine(user.id, id);
   }
 
+  // Each attempt can hit the real Yengapay API — cap how fast one account can spam it.
+  @Throttle({ default: { limit: 15, ttl: 60_000 } })
   @Post()
   create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateOrderDto) {
     return this.orders.create(user.id, dto);

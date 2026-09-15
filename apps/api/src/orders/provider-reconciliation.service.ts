@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
-import { OrderStatus } from "@prisma/client";
+import { OrderStatus, PaymentStatus } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { PanelFollowsClient } from "../panelfollows/panelfollows.client";
 import { OrdersService } from "./orders.service";
@@ -50,6 +50,35 @@ export class ProviderReconciliationService {
 
     for (const order of stuck) {
       await this.orders.ensureSubmittedToProvider(order.id);
+    }
+  }
+
+  /**
+   * Abandoned checkouts (client never came back to send-otp/confirm) otherwise sit as
+   * PENDING_PAYMENT forever — Yengapay doesn't push us anything for those, and the
+   * lazy expiry check only fires if the client happens to retry. Sweep them here too.
+   */
+  @Cron(CronExpression.EVERY_10_MINUTES)
+  async expireAbandonedPayments() {
+    const expired = await this.prisma.payment.findMany({
+      where: { status: PaymentStatus.PENDING, expiresAt: { lt: new Date() } },
+      take: 200,
+    });
+
+    for (const payment of expired) {
+      await this.prisma.$transaction([
+        this.prisma.payment.update({
+          where: { id: payment.id },
+          data: { status: PaymentStatus.EXPIRED },
+        }),
+        this.prisma.order.update({
+          where: { id: payment.orderId },
+          data: { orderStatus: OrderStatus.EXPIRED },
+        }),
+      ]);
+    }
+    if (expired.length > 0) {
+      this.logger.log(`Expired ${expired.length} abandoned payment(s)`);
     }
   }
 }

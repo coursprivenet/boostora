@@ -2,6 +2,8 @@ import { Body, Controller, Delete, Get, Param, Patch, Post } from "@nestjs/commo
 import { UserRole } from "@prisma/client";
 import { Public } from "../auth/decorators/public.decorator";
 import { Roles } from "../auth/decorators/roles.decorator";
+import { CurrentUser } from "../auth/decorators/current-user.decorator";
+import { AuthenticatedUser } from "../auth/strategies/jwt.strategy";
 import { CategoriesService } from "./categories.service";
 import { UpsertCategoryDto } from "./dto/upsert-category.dto";
 
@@ -23,19 +25,23 @@ export class CategoriesController {
 
   @Roles(UserRole.ADMIN)
   @Post()
-  create(@Body() dto: UpsertCategoryDto) {
-    return this.categories.create(dto);
+  create(@Body() dto: UpsertCategoryDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.categories.create(dto, user.id);
   }
 
   @Roles(UserRole.ADMIN)
   @Patch(":id")
-  update(@Param("id") id: string, @Body() dto: Partial<UpsertCategoryDto>) {
-    return this.categories.update(id, dto);
+  update(
+    @Param("id") id: string,
+    @Body() dto: Partial<UpsertCategoryDto>,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.categories.update(id, dto, user.id);
   }
 
   @Roles(UserRole.ADMIN)
   @Delete(":id")
-  remove(@Param("id") id: string) {
-    return this.categories.remove(id);
+  remove(@Param("id") id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.categories.remove(id, user.id);
   }
 }

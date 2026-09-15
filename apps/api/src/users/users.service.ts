@@ -1,10 +1,14 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { UserRole } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { AuditLogService } from "../audit-log/audit-log.service";
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditLog: AuditLogService,
+  ) {}
 
   async listAll() {
     const users = await this.prisma.user.findMany({
@@ -21,13 +25,18 @@ export class UsersService {
     return users.map((u) => ({ ...u, ordersCount: u._count.orders, _count: undefined }));
   }
 
-  async updateRole(id: string, role: UserRole) {
+  async updateRole(id: string, role: UserRole, actorUserId: string) {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException("Utilisateur introuvable");
-    return this.prisma.user.update({
+    const updated = await this.prisma.user.update({
       where: { id },
       data: { role },
       select: { id: true, email: true, role: true },
     });
+    await this.auditLog.record(actorUserId, "user.role_change", id, {
+      from: user.role,
+      to: role,
+    });
+    return updated;
   }
 }

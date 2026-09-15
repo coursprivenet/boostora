@@ -2,6 +2,8 @@ import { Body, Controller, Delete, Get, Param, Patch, Post } from "@nestjs/commo
 import { UserRole } from "@prisma/client";
 import { Public } from "../auth/decorators/public.decorator";
 import { Roles } from "../auth/decorators/roles.decorator";
+import { CurrentUser } from "../auth/decorators/current-user.decorator";
+import { AuthenticatedUser } from "../auth/strategies/jwt.strategy";
 import { CatalogService } from "./catalog.service";
 import { UpsertCatalogServiceDto } from "./dto/upsert-catalog-service.dto";
 
@@ -29,19 +31,23 @@ export class CatalogController {
 
   @Roles(UserRole.ADMIN)
   @Post()
-  create(@Body() dto: UpsertCatalogServiceDto) {
-    return this.catalog.create(dto);
+  create(@Body() dto: UpsertCatalogServiceDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.catalog.create(dto, user.id);
   }
 
   @Roles(UserRole.ADMIN)
   @Patch(":id")
-  update(@Param("id") id: string, @Body() dto: Partial<UpsertCatalogServiceDto>) {
-    return this.catalog.update(id, dto);
+  update(
+    @Param("id") id: string,
+    @Body() dto: Partial<UpsertCatalogServiceDto>,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.catalog.update(id, dto, user.id);
   }
 
   @Roles(UserRole.ADMIN)
   @Delete(":id")
-  remove(@Param("id") id: string) {
-    return this.catalog.remove(id);
+  remove(@Param("id") id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.catalog.remove(id, user.id);
   }
 }

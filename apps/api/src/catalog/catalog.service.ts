@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from "@nestjs/comm
 import Decimal from "decimal.js";
 import { PrismaService } from "../prisma/prisma.service";
 import { ExchangeRateService } from "../exchange-rate/exchange-rate.service";
+import { AuditLogService } from "../audit-log/audit-log.service";
 import { computePrice } from "../pricing/pricing.util";
 import { UpsertCatalogServiceDto } from "./dto/upsert-catalog-service.dto";
 
@@ -10,17 +11,20 @@ export class CatalogService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly exchangeRate: ExchangeRateService,
+    private readonly auditLog: AuditLogService,
   ) {}
 
-  async create(dto: UpsertCatalogServiceDto) {
+  async create(dto: UpsertCatalogServiceDto, actorUserId: string) {
     const providerService = await this.getProviderServiceOrThrow(dto.providerServiceId);
     await this.getCategoryOrThrow(dto.categoryId);
     this.validateQuantityOverrides(dto, providerService);
 
-    return this.prisma.catalogService.create({ data: dto });
+    const created = await this.prisma.catalogService.create({ data: dto });
+    await this.auditLog.record(actorUserId, "catalog.create", created.id, { name: dto.name });
+    return created;
   }
 
-  async update(id: string, dto: Partial<UpsertCatalogServiceDto>) {
+  async update(id: string, dto: Partial<UpsertCatalogServiceDto>, actorUserId: string) {
     const existing = await this.prisma.catalogService.findUnique({
       where: { id },
       include: { providerService: true },
@@ -38,13 +42,17 @@ export class CatalogService {
       providerService,
     );
 
-    return this.prisma.catalogService.update({ where: { id }, data: dto });
+    const updated = await this.prisma.catalogService.update({ where: { id }, data: dto });
+    await this.auditLog.record(actorUserId, "catalog.update", id, dto as Record<string, unknown>);
+    return updated;
   }
 
-  async remove(id: string) {
+  async remove(id: string, actorUserId: string) {
     const existing = await this.prisma.catalogService.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException("Service catalogue introuvable");
-    return this.prisma.catalogService.delete({ where: { id } });
+    const removed = await this.prisma.catalogService.delete({ where: { id } });
+    await this.auditLog.record(actorUserId, "catalog.delete", id, { name: existing.name });
+    return removed;
   }
 
   /**

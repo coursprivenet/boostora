@@ -13,6 +13,7 @@ import { YengapayApiError } from "../yengapay/yengapay.types";
 import { PanelFollowsClient } from "../panelfollows/panelfollows.client";
 import { PanelFollowsApiError } from "../panelfollows/panelfollows.types";
 import { mapProviderOrderStatus } from "../panelfollows/order-status-mapper";
+import { AuditLogService } from "../audit-log/audit-log.service";
 import { CreateOrderDto } from "./dto/create-order.dto";
 import { SendOtpDto } from "./dto/send-otp.dto";
 import { ConfirmPaymentDto } from "./dto/confirm-payment.dto";
@@ -28,6 +29,7 @@ export class OrdersService {
     private readonly catalog: CatalogService,
     private readonly yengapay: YengapayClient,
     private readonly panelFollows: PanelFollowsClient,
+    private readonly auditLog: AuditLogService,
   ) {}
 
   async listMine(userId: string) {
@@ -83,6 +85,9 @@ export class OrdersService {
    * never on the strength of this call alone.
    */
   async create(userId: string, dto: CreateOrderDto) {
+    const duplicate = await this.findReusableDuplicate(userId, dto);
+    if (duplicate) return duplicate;
+
     const priced = await this.catalog.computeOrderPrice(dto.catalogServiceId, dto.quantity);
 
     const order = await this.prisma.order.create({
@@ -138,6 +143,43 @@ export class OrdersService {
       }
       throw err;
     }
+  }
+
+  /**
+   * Guards against a double form submit / retried request creating two payment
+   * intents for the same intent: an unpaid, unexpired order for this exact
+   * user+service+link+quantity, opened in the last two minutes, is reused as-is
+   * instead of creating a new one.
+   */
+  private async findReusableDuplicate(userId: string, dto: CreateOrderDto) {
+    const cutoff = new Date(Date.now() - 2 * 60_000);
+    const existing = await this.prisma.order.findFirst({
+      where: {
+        userId,
+        catalogServiceId: dto.catalogServiceId,
+        targetLink: dto.targetLink,
+        quantity: dto.quantity,
+        orderStatus: OrderStatus.PENDING_PAYMENT,
+        createdAt: { gte: cutoff },
+      },
+      include: { payment: true },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (!existing?.payment || existing.payment.status !== PaymentStatus.PENDING) return null;
+    if (existing.payment.expiresAt && existing.payment.expiresAt.getTime() < Date.now()) return null;
+
+    const init = existing.payment.rawInitResponse as {
+      availableOperators: unknown;
+    } | null;
+    if (!init) return null;
+
+    return {
+      orderId: existing.id,
+      expiresAt: existing.payment.expiresAt?.toISOString(),
+      priceClientXof: existing.priceClientXof.toString(),
+      availableOperators: init.availableOperators,
+    };
   }
 
   async sendOtp(userId: string, orderId: string, dto: SendOtpDto) {
@@ -256,7 +298,7 @@ export class OrdersService {
    * a separate concern (webhook automation phase); this just records the outcome so a
    * later retry pass has something to act on.
    */
-  async ensureSubmittedToProvider(orderId: string) {
+  async ensureSubmittedToProvider(orderId: string, triggeredManuallyBy?: string) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
       include: { catalogService: { include: { providerService: true } } },
@@ -264,6 +306,12 @@ export class OrdersService {
     if (!order) return;
     if (order.providerOrderId != null) return;
     if (order.orderStatus === OrderStatus.SUBMITTING) return;
+
+    if (triggeredManuallyBy) {
+      await this.auditLog.record(triggeredManuallyBy, "order.manual_resubmit", order.id, {
+        previousStatus: order.orderStatus,
+      });
+    }
 
     await this.prisma.order.update({
       where: { id: order.id },
@@ -383,6 +431,7 @@ export class OrdersService {
         where: { id: order.id },
         data: { orderStatus: OrderStatus.CANCELLED },
       });
+      await this.auditLog.record(userId, "order.cancel", order.id);
       return { status: "cancelled" };
     } catch (err) {
       await this.prisma.order.update({
@@ -425,6 +474,7 @@ export class OrdersService {
       });
       // Completion is asynchronous on PanelFollows' side (GET /refills/{id} or a
       // refill.updated webhook/event) — left as REFILL_REQUESTED until that lands.
+      await this.auditLog.record(userId, "order.refill_request", order.id);
       return { status: "requested", providerRefillId: result.id };
     } catch (err) {
       await this.prisma.$transaction([

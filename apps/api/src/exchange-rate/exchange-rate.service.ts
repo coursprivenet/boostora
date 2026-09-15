@@ -2,12 +2,14 @@ import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import Decimal from "decimal.js";
 import { PrismaService } from "../prisma/prisma.service";
+import { AuditLogService } from "../audit-log/audit-log.service";
 
 @Injectable()
 export class ExchangeRateService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly auditLog: AuditLogService,
   ) {}
 
   /** Latest admin-set rate, or the env default if none has ever been set. */
@@ -21,9 +23,11 @@ export class ExchangeRateService {
   }
 
   async setRate(rateXofPerUsd: number, setByUserId: string) {
-    return this.prisma.exchangeRate.create({
+    const created = await this.prisma.exchangeRate.create({
       data: { rateXofPerUsd, setByUserId },
     });
+    await this.auditLog.record(setByUserId, "exchange_rate.set", created.id, { rateXofPerUsd });
+    return created;
   }
 
   async history(limit = 20) {
