@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: boostora
+          POSTGRES_PASSWORD: boostora
+          POSTGRES_DB: boostora
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U boostora"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://boostora:boostora@localhost:5432/boostora
+      REDIS_URL: redis://localhost:6379
+      PORT: "3001"
+      JWT_SECRET: ci-test-secret
+      PANELFOLLOWS_API_KEY: pf_test_ci
+      PANELFOLLOWS_WEBHOOK_SECRET: whsec_ci
+      YENGAPAY_ORGANIZATION_ID: ci
+      YENGAPAY_PROJECT_ID: ci
+      YENGAPAY_API_KEY: ci
+      YENGAPAY_WEBHOOK_SECRET: ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build --workspace=@boostora/shared
+      - run: npx prisma generate --schema=apps/api/prisma/schema.prisma
+      - run: npm run build --workspace=api
+      - run: npm run build --workspace=web
