@@ -7,6 +7,11 @@ import { HealthModule } from "./health/health.module";
 import { AuthModule } from "./auth/auth.module";
 import { JwtAuthGuard } from "./auth/guards/jwt-auth.guard";
 import { RolesGuard } from "./auth/guards/roles.guard";
+import { PanelFollowsModule } from "./panelfollows/panelfollows.module";
+import { ExchangeRateModule } from "./exchange-rate/exchange-rate.module";
+import { CategoriesModule } from "./categories/categories.module";
+import { ProviderServicesModule } from "./provider-services/provider-services.module";
+import { CatalogModule } from "./catalog/catalog.module";
 
 @Module({
   imports: [
@@ -17,6 +22,11 @@ import { RolesGuard } from "./auth/guards/roles.guard";
     PrismaModule,
     HealthModule,
     AuthModule,
+    PanelFollowsModule,
+    ExchangeRateModule,
+    CategoriesModule,
+    ProviderServicesModule,
+    CatalogModule,
   ],
   providers: [
     // Secure by default: every route requires a valid JWT unless marked @Public().

@@ -19,6 +19,9 @@ class EnvironmentVariables {
   PANELFOLLOWS_API_KEY!: string;
 
   @IsString()
+  PANELFOLLOWS_BASE_URL!: string;
+
+  @IsString()
   PANELFOLLOWS_WEBHOOK_SECRET!: string;
 
   @IsString()
