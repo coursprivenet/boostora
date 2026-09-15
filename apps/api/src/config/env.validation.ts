@@ -25,6 +25,9 @@ class EnvironmentVariables {
   PANELFOLLOWS_WEBHOOK_SECRET!: string;
 
   @IsString()
+  YENGAPAY_BASE_URL!: string;
+
+  @IsString()
   YENGAPAY_ORGANIZATION_ID!: string;
 
   @IsString()

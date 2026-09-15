@@ -12,6 +12,9 @@ import { ExchangeRateModule } from "./exchange-rate/exchange-rate.module";
 import { CategoriesModule } from "./categories/categories.module";
 import { ProviderServicesModule } from "./provider-services/provider-services.module";
 import { CatalogModule } from "./catalog/catalog.module";
+import { YengapayModule } from "./yengapay/yengapay.module";
+import { OrdersModule } from "./orders/orders.module";
+import { WebhooksModule } from "./webhooks/webhooks.module";
 
 @Module({
   imports: [
@@ -27,6 +30,9 @@ import { CatalogModule } from "./catalog/catalog.module";
     CategoriesModule,
     ProviderServicesModule,
     CatalogModule,
+    YengapayModule,
+    OrdersModule,
+    WebhooksModule,
   ],
   providers: [
     // Secure by default: every route requires a valid JWT unless marked @Public().

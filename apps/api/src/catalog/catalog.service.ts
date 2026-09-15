@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import Decimal from "decimal.js";
 import { PrismaService } from "../prisma/prisma.service";
 import { ExchangeRateService } from "../exchange-rate/exchange-rate.service";
 import { computePrice } from "../pricing/pricing.util";
@@ -44,6 +45,58 @@ export class CatalogService {
     const existing = await this.prisma.catalogService.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException("Service catalogue introuvable");
     return this.prisma.catalogService.delete({ where: { id } });
+  }
+
+  /**
+   * Prices one actual order. Unlike listPublic/listAdmin (which show a per-1000 or
+   * per-order REFERENCE price for the catalog grid), this scales the provider cost to
+   * the requested quantity BEFORE applying the margin rule and rounding — rounding a
+   * unit price then multiplying it by an arbitrary quantity would compound the rounding
+   * error instead of bounding it once, on the number the client actually pays.
+   */
+  async computeOrderPrice(catalogServiceId: string, quantity: number) {
+    const [service, fxRate] = await Promise.all([
+      this.prisma.catalogService.findUnique({
+        where: { id: catalogServiceId },
+        include: { providerService: true },
+      }),
+      this.exchangeRate.getCurrentRate(),
+    ]);
+
+    if (!service || !service.isVisible || !service.providerService.isActiveUpstream) {
+      throw new NotFoundException("Service indisponible");
+    }
+
+    const min = service.minQuantityOverride ?? service.providerService.minQuantity;
+    const max = service.maxQuantityOverride ?? service.providerService.maxQuantity;
+    if (quantity < min || quantity > max) {
+      throw new BadRequestException(`Quantité invalide (min ${min}, max ${max})`);
+    }
+
+    const quantityFactor =
+      service.providerService.unit === "per_1000" ? new Decimal(quantity).div(1000) : new Decimal(1);
+    const costUsdForOrder = new Decimal(service.providerService.rateUsd.toString()).mul(quantityFactor);
+
+    const price = computePrice({
+      pricingRuleType: service.pricingRuleType,
+      pricingValue: service.pricingValue.toString(),
+      costUsd: costUsdForOrder,
+      fxRateXofPerUsd: fxRate,
+      roundingStep: service.roundingStep?.toString(),
+      minPriceXof: service.minPriceXof?.toString(),
+      maxPriceXof: service.maxPriceXof?.toString(),
+    });
+
+    return {
+      catalogService: service,
+      providerService: service.providerService,
+      quantity,
+      fxRateUsed: fxRate,
+      priceClientXof: price.priceClientXof.toDecimalPlaces(0),
+      costProviderXof: price.costProviderXof.toDecimalPlaces(0),
+      costProviderUsd: costUsdForOrder,
+      marginXof: price.marginXof.toDecimalPlaces(0),
+    };
   }
 
   /** Admin view: exposes provider cost and margin. Never return this shape to a client. */

@@ -204,6 +204,7 @@ model Payment {
   expiresAt               DateTime?
 
   rawInitResponse    Json?
+  rawConfirmResponse Json?
   rawWebhookPayload  Json?
 
   createdAt DateTime @default(now())
