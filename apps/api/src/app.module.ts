@@ -16,6 +16,8 @@ import { CatalogModule } from "./catalog/catalog.module";
 import { YengapayModule } from "./yengapay/yengapay.module";
 import { OrdersModule } from "./orders/orders.module";
 import { WebhooksModule } from "./webhooks/webhooks.module";
+import { UsersModule } from "./users/users.module";
+import { AdminModule } from "./admin/admin.module";
 
 @Module({
   imports: [
@@ -35,6 +37,8 @@ import { WebhooksModule } from "./webhooks/webhooks.module";
     YengapayModule,
     OrdersModule,
     WebhooksModule,
+    UsersModule,
+    AdminModule,
   ],
   providers: [
     // Secure by default: every route requires a valid JWT unless marked @Public().

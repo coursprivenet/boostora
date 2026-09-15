@@ -67,3 +67,81 @@ export interface OrderSummary {
   catalogService: { name: string; description: string | null };
   payment: { status: string; expiresAt: string | null } | null;
 }
+
+export interface AdminOrder extends OrderSummary {
+  costProviderUsd: string;
+  marginXof: string;
+  providerOrderId: number | null;
+  providerStatusRaw: string | null;
+  user: { email: string };
+  yengapayFeesXof: number | null;
+  netMarginXof: number | null;
+}
+
+export interface AdminStats {
+  totalUsers: number;
+  totalOrders: number;
+  paidOrdersCount: number;
+  failedOrders: number;
+  ordersByStatus: Record<string, number>;
+  totalRevenueXof: number;
+  grossMarginXof: number;
+  netMarginXof: number;
+  topServices: { name: string; count: number; revenueXof: number }[];
+}
+
+export interface ProviderServiceRow {
+  id: string;
+  providerServiceId: number;
+  name: string;
+  platform: string;
+  categorySlug: string;
+  categoryName: string;
+  rateUsd: string;
+  unit: string;
+  minQuantity: number;
+  maxQuantity: number;
+  refillSupported: boolean;
+  cancelSupported: boolean;
+  dripfeedSupported: boolean;
+  isActiveUpstream: boolean;
+}
+
+export interface CatalogAdminItem {
+  id: string;
+  name: string;
+  description: string | null;
+  isVisible: boolean;
+  displayOrder: number;
+  category: { id: string; name: string; slug: string };
+  provider: {
+    providerServiceId: number;
+    platform: string;
+    rateUsd: string;
+    unit: string;
+    isActiveUpstream: boolean;
+    minQuantity: number;
+    maxQuantity: number;
+  };
+  minQuantity: number;
+  maxQuantity: number;
+  fxRateUsed: string;
+  priceClientXof: string;
+  costProviderXof: string;
+  marginXof: string;
+}
+
+export interface UserRow {
+  id: string;
+  email: string;
+  phone: string | null;
+  role: UserRole;
+  createdAt: string;
+  ordersCount: number;
+}
+
+export interface ExchangeRateRow {
+  id: string;
+  rateXofPerUsd: string;
+  effectiveFrom: string;
+}
