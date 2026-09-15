@@ -1,6 +1,5 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
-import { ScheduleModule } from "@nestjs/schedule";
 import { ThrottlerModule, ThrottlerGuard } from "@nestjs/throttler";
 import { APP_GUARD } from "@nestjs/core";
 import { validateEnv } from "./config/env.validation";
@@ -20,6 +19,7 @@ import { WebhooksModule } from "./webhooks/webhooks.module";
 import { UsersModule } from "./users/users.module";
 import { AdminModule } from "./admin/admin.module";
 import { AuditLogModule } from "./audit-log/audit-log.module";
+import { InternalCronModule } from "./internal-cron/internal-cron.module";
 
 @Module({
   imports: [
@@ -27,7 +27,6 @@ import { AuditLogModule } from "./audit-log/audit-log.module";
       isGlobal: true,
       validate: validateEnv,
     }),
-    ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([{ name: "default", ttl: 60_000, limit: 100 }]),
     PrismaModule,
     HealthModule,
@@ -43,6 +42,7 @@ import { AuditLogModule } from "./audit-log/audit-log.module";
     UsersModule,
     AdminModule,
     AuditLogModule,
+    InternalCronModule,
   ],
   providers: [
     // Runs before auth so a brute-force burst is rejected before it even reaches the DB-backed JWT check.

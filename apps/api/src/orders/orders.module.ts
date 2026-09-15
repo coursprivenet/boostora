@@ -11,6 +11,6 @@ import { ProviderReconciliationService } from "./provider-reconciliation.service
   imports: [CatalogModule, YengapayModule, PanelFollowsModule, AuditLogModule],
   providers: [OrdersService, ProviderReconciliationService],
   controllers: [OrdersController],
-  exports: [OrdersService],
+  exports: [OrdersService, ProviderReconciliationService],
 })
 export class OrdersModule {}

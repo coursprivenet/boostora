@@ -1,5 +1,4 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { Cron, CronExpression } from "@nestjs/schedule";
 import { OrderStatus, PaymentStatus } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { PanelFollowsClient } from "../panelfollows/panelfollows.client";
@@ -8,8 +7,9 @@ import { OrdersService } from "./orders.service";
 /**
  * Polling safety net alongside the PanelFollows webhook: catches a lost/never-received
  * delivery, and retries an order stuck in RETRY_SUBMIT after a transient provider error.
- * Runs on a fixed interval rather than a queue — the order volume here doesn't yet
- * justify standing up Redis/BullMQ for this.
+ * Triggered by an external scheduler (Vercel Cron hitting InternalCronController) rather
+ * than an in-process timer — the deployment target is serverless, so nothing keeps a
+ * setInterval alive between requests.
  */
 @Injectable()
 export class ProviderReconciliationService {
@@ -21,7 +21,6 @@ export class ProviderReconciliationService {
     private readonly orders: OrdersService,
   ) {}
 
-  @Cron(CronExpression.EVERY_5_MINUTES)
   async reconcileActiveOrders() {
     const active = await this.prisma.order.findMany({
       where: {
@@ -39,9 +38,9 @@ export class ProviderReconciliationService {
         this.logger.warn(`Reconcile poll failed for order ${order.id}: ${(err as Error).message}`);
       }
     }
+    return { checked: active.length };
   }
 
-  @Cron(CronExpression.EVERY_5_MINUTES)
   async retryStuckSubmissions() {
     const stuck = await this.prisma.order.findMany({
       where: { orderStatus: OrderStatus.RETRY_SUBMIT },
@@ -51,6 +50,7 @@ export class ProviderReconciliationService {
     for (const order of stuck) {
       await this.orders.ensureSubmittedToProvider(order.id);
     }
+    return { retried: stuck.length };
   }
 
   /**
@@ -58,7 +58,6 @@ export class ProviderReconciliationService {
    * PENDING_PAYMENT forever — Yengapay doesn't push us anything for those, and the
    * lazy expiry check only fires if the client happens to retry. Sweep them here too.
    */
-  @Cron(CronExpression.EVERY_10_MINUTES)
   async expireAbandonedPayments() {
     const expired = await this.prisma.payment.findMany({
       where: { status: PaymentStatus.PENDING, expiresAt: { lt: new Date() } },
@@ -80,5 +79,6 @@ export class ProviderReconciliationService {
     if (expired.length > 0) {
       this.logger.log(`Expired ${expired.length} abandoned payment(s)`);
     }
+    return { expired: expired.length };
   }
 }

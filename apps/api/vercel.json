@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [{ "source": "/(.*)", "destination": "/api" }],
+  "crons": [
+    { "path": "/internal/cron/reconcile-orders", "schedule": "0 3 * * *" },
+    { "path": "/internal/cron/retry-submissions", "schedule": "15 3 * * *" },
+    { "path": "/internal/cron/expire-payments", "schedule": "30 3 * * *" }
+  ]
+}

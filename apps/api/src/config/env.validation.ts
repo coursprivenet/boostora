@@ -5,9 +5,6 @@ class EnvironmentVariables {
   @IsString()
   DATABASE_URL!: string;
 
-  @IsString()
-  REDIS_URL!: string;
-
   @IsInt()
   @Min(1)
   PORT!: number;
@@ -38,6 +35,10 @@ class EnvironmentVariables {
 
   @IsString()
   YENGAPAY_WEBHOOK_SECRET!: string;
+
+  /** Vercel injects `Authorization: Bearer <this>` when invoking a scheduled cron route. */
+  @IsString()
+  CRON_SECRET!: string;
 }
 
 /** Fails fast at boot if a required secret/config value is missing — never at first use in prod. */
