@@ -226,19 +226,31 @@ export class OrdersService {
       throw err;
     }
 
-    // This is a direct, synchronous server-to-server confirmation from Yengapay's own
+    // Always record what Yengapay actually said, regardless of status.
+    await this.prisma.payment.update({
+      where: { id: payment.id },
+      data: { operatorCode: dto.operatorCode, rawConfirmResponse: result as unknown as object },
+    });
+
+    if (result.status !== "DONE") {
+      // Sandbox always answered DONE synchronously; a real production project can
+      // answer PENDING instead ("Attendez le webhook ou vérifiez le statut" — found
+      // empirically, undocumented). Do NOT mark PAID on the strength of this response
+      // alone — that would be exactly the "trusted a redirect/response that looked like
+      // success" mistake, just one hop removed. The webhook (confirmPaymentFromWebhook)
+      // is the only thing allowed to confirm PAID from here.
+      this.logger.log(`Order ${order.id} payment is ${result.status}, awaiting webhook confirmation`);
+      return result;
+    }
+
+    // A synchronous DONE is a direct, server-to-server confirmation from Yengapay's own
     // API over our own authenticated call — not a client-supplied "success" redirect —
     // so it's a valid source of truth. The webhook (when it also arrives) is still
     // processed and deduped; it just confirms what we already know.
     await this.prisma.$transaction([
       this.prisma.payment.update({
         where: { id: payment.id },
-        data: {
-          status: PaymentStatus.PAID,
-          operatorCode: dto.operatorCode,
-          feesXof: result.fees,
-          rawConfirmResponse: result as unknown as object,
-        },
+        data: { status: PaymentStatus.PAID, feesXof: result.fees },
       }),
       this.prisma.order.update({
         where: { id: order.id },

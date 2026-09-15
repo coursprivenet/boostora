@@ -45,13 +45,20 @@ export interface YengapaySendOtpResponse {
   };
 }
 
+/**
+ * Sandbox always returned "DONE" synchronously. A real production project can also
+ * return "PENDING" ("Attendez le webhook ou vérifiez le statut.") — undocumented, found
+ * empirically. transactionId/amount/fees/totalAmount are only present once status is
+ * actually "DONE"; never assume they exist for a PENDING response.
+ */
 export interface YengapayPayResponse {
-  status: "DONE";
-  transactionId: string;
+  status: "DONE" | "PENDING" | string;
+  message?: string;
+  transactionId?: string;
   paymentIntentId: string;
-  amount: number;
-  fees: number;
-  totalAmount: number;
+  amount?: number;
+  fees?: number;
+  totalAmount?: number;
   operator?: { code: string; name: string; countryCode: string };
   customerMSISDN?: string;
   flow?: YengapayFlow;

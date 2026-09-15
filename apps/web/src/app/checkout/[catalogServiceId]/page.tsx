@@ -14,7 +14,8 @@ type Step =
   | { kind: "form" }
   | { kind: "operator"; created: CreateOrderResponse }
   | { kind: "otp"; created: CreateOrderResponse; operator: YengapayOperator; otpSent: boolean }
-  | { kind: "success"; transactionId: string };
+  | { kind: "success"; transactionId: string }
+  | { kind: "pending"; orderId: string };
 
 export default function CheckoutPage() {
   const { catalogServiceId } = useParams<{ catalogServiceId: string }>();
@@ -90,12 +91,17 @@ export default function CheckoutPage() {
     setBusy(true);
     setError(null);
     try {
-      const result = await api.post<{ status: string; transactionId: string }>(
+      const result = await api.post<{ status: string; transactionId?: string }>(
         `/orders/${created.orderId}/payment/confirm`,
         { operatorCode: operator.code, countryCode: "BF", customerMSISDN: phone, otp },
         token,
       );
-      setStep({ kind: "success", transactionId: result.transactionId });
+      if (result.status === "DONE" && result.transactionId) {
+        setStep({ kind: "success", transactionId: result.transactionId });
+      } else {
+        // Yengapay hasn't confirmed synchronously — our webhook will settle it shortly.
+        setStep({ kind: "pending", orderId: created.orderId });
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Paiement refusé");
     } finally {
@@ -228,9 +234,25 @@ export default function CheckoutPage() {
             </Button>
           </div>
         )}
+
+        {step.kind === "pending" && (
+          <div className="flex flex-col items-center gap-3 py-4 text-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+              …
+            </div>
+            <p className="font-medium text-ink-900">Paiement en cours de vérification</p>
+            <p className="text-sm text-ink-500">
+              L&apos;opérateur confirme le paiement — ça prend généralement quelques instants.
+              Ta commande apparaîtra comme payée dès que ce sera fait.
+            </p>
+            <Button onClick={() => router.push(`/dashboard/orders/${step.orderId}`)} className="mt-2">
+              Suivre ma commande
+            </Button>
+          </div>
+        )}
       </div>
 
-      {step.kind !== "success" && (
+      {step.kind !== "success" && step.kind !== "pending" && (
         <Link href="/" className="mt-4 inline-block text-sm text-ink-500 hover:underline">
           ← Retour au catalogue
         </Link>
