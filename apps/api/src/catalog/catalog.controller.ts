@@ -21,6 +21,12 @@ export class CatalogController {
     return this.catalog.listAdmin();
   }
 
+  @Public()
+  @Get(":id")
+  getPublicOne(@Param("id") id: string) {
+    return this.catalog.getPublicOne(id);
+  }
+
   @Roles(UserRole.ADMIN)
   @Post()
   create(@Body() dto: UpsertCatalogServiceDto) {

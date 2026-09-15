@@ -182,6 +182,43 @@ export class CatalogService {
     });
   }
 
+  /** Single-item public lookup (checkout page) — same shape as listPublic's entries. */
+  async getPublicOne(id: string) {
+    const [service, fxRate] = await Promise.all([
+      this.prisma.catalogService.findUnique({
+        where: { id },
+        include: { providerService: true, category: true },
+      }),
+      this.exchangeRate.getCurrentRate(),
+    ]);
+
+    if (!service || !service.isVisible || !service.providerService.isActiveUpstream) {
+      throw new NotFoundException("Service indisponible");
+    }
+
+    const price = computePrice({
+      pricingRuleType: service.pricingRuleType,
+      pricingValue: service.pricingValue.toString(),
+      costUsd: service.providerService.rateUsd.toString(),
+      fxRateXofPerUsd: fxRate,
+      roundingStep: service.roundingStep?.toString(),
+      minPriceXof: service.minPriceXof?.toString(),
+      maxPriceXof: service.maxPriceXof?.toString(),
+    });
+
+    return {
+      id: service.id,
+      name: service.name,
+      description: service.description,
+      category: { slug: service.category.slug, name: service.category.name },
+      platform: service.providerService.platform,
+      unit: service.providerService.unit,
+      minQuantity: service.minQuantityOverride ?? service.providerService.minQuantity,
+      maxQuantity: service.maxQuantityOverride ?? service.providerService.maxQuantity,
+      priceClientXof: price.priceClientXof.toDecimalPlaces(0).toString(),
+    };
+  }
+
   private async getProviderServiceOrThrow(id: string) {
     const providerService = await this.prisma.providerService.findUnique({ where: { id } });
     if (!providerService) throw new NotFoundException("Service fournisseur introuvable");
