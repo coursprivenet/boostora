@@ -14,6 +14,12 @@ export class CatalogService {
     private readonly auditLog: AuditLogService,
   ) {}
 
+  /** Public-safe subset of computeOrderPrice — cost/margin never leave the server. */
+  async previewPrice(catalogServiceId: string, quantity: number) {
+    const priced = await this.computeOrderPrice(catalogServiceId, quantity);
+    return { quantity, priceClientXof: priced.priceClientXof.toString() };
+  }
+
   async create(dto: UpsertCatalogServiceDto, actorUserId: string) {
     const providerService = await this.getProviderServiceOrThrow(dto.providerServiceId);
     await this.getCategoryOrThrow(dto.categoryId);

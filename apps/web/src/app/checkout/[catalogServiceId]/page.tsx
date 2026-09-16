@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, FormEvent } from "react";
+import { useEffect, useRef, useState, FormEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useRequireAuth } from "@/lib/use-require-auth";
@@ -9,6 +9,22 @@ import { CatalogItem, CouponPreview, CreateOrderResponse, YengapayOperator } fro
 import { formatXof } from "@/lib/format";
 import { Input } from "@/components/Input";
 import { Button } from "@/components/Button";
+import { Tooltip } from "@/components/Tooltip";
+
+const SLIDER_STEPS = 1000;
+
+/** Cubic curve: most of the slider's travel maps to the low end of the range, where
+ * real orders cluster, while still reaching the service's exact max at the far end —
+ * a plain linear slider is useless once max hits the hundreds of thousands. */
+function sliderPosToQuantity(pos: number, min: number, max: number) {
+  const t = pos / SLIDER_STEPS;
+  return Math.round(min + (max - min) * t ** 3);
+}
+function quantityToSliderPos(quantity: number, min: number, max: number) {
+  if (max <= min) return 0;
+  const t = (quantity - min) / (max - min);
+  return Math.round(Math.cbrt(Math.max(0, t)) * SLIDER_STEPS);
+}
 
 type Step =
   | { kind: "form" }
@@ -29,6 +45,10 @@ export default function CheckoutPage() {
   const [quantity, setQuantity] = useState<number>(0);
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
+
+  const [livePrice, setLivePrice] = useState<string | null>(null);
+  const [priceLoading, setPriceLoading] = useState(false);
+  const previewRequestId = useRef(0);
 
   const [couponCode, setCouponCode] = useState("");
   const [couponPreview, setCouponPreview] = useState<CouponPreview | null>(null);
@@ -69,6 +89,32 @@ export default function CheckoutPage() {
       })
       .catch(() => setLoadError("Service introuvable ou indisponible."));
   }, [catalogServiceId]);
+
+  // Live price as the client drags the slider or types a quantity — debounced so dragging
+  // doesn't fire a request per pixel, and stale responses (slow request overtaken by a
+  // newer one) are dropped by comparing against the latest request id.
+  useEffect(() => {
+    if (!item || !quantity || quantity < item.minQuantity || quantity > item.maxQuantity) {
+      setLivePrice(null);
+      return;
+    }
+    const requestId = ++previewRequestId.current;
+    setPriceLoading(true);
+    const timer = setTimeout(() => {
+      api
+        .get<{ priceClientXof: string }>(`/catalog/${item.id}/price-preview?quantity=${quantity}`)
+        .then((res) => {
+          if (previewRequestId.current === requestId) setLivePrice(res.priceClientXof);
+        })
+        .catch(() => {
+          if (previewRequestId.current === requestId) setLivePrice(null);
+        })
+        .finally(() => {
+          if (previewRequestId.current === requestId) setPriceLoading(false);
+        });
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [item, quantity]);
 
   async function submitOrder(e: FormEvent) {
     e.preventDefault();
@@ -150,8 +196,9 @@ export default function CheckoutPage() {
       <h1 className="text-xl font-semibold text-ink-900">{item.name}</h1>
       <p className="mt-1 text-sm text-ink-500">{item.description}</p>
       {item.riskWarning && (
-        <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          ⚠ {item.riskWarning}
+        <p className="mt-2 flex items-start gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          <span>⚠ {item.riskWarning}</span>
+          <Tooltip text="Si le nombre livré baisse après coup (compte suspendu, purge de la plateforme, etc.), ce service ne recompense pas automatiquement — et aucun chiffre n'est garanti à 100%, les réseaux sociaux gardent le contrôle final." />
         </p>
       )}
 
@@ -166,18 +213,51 @@ export default function CheckoutPage() {
               value={targetLink}
               onChange={(e) => setTargetLink(e.target.value)}
             />
-            <Input
-              label={`Quantité (min ${item.minQuantity}, max ${item.maxQuantity})`}
-              type="number"
-              required
-              min={item.minQuantity}
-              max={item.maxQuantity}
-              value={quantity}
-              onChange={(e) => {
-                setQuantity(Number(e.target.value));
-                setCouponPreview(null);
-              }}
-            />
+            <div>
+              <div className="mb-1.5 flex items-center justify-between">
+                <span className="text-sm font-medium text-ink-700">Quantité</span>
+                <input
+                  type="number"
+                  required
+                  min={item.minQuantity}
+                  max={item.maxQuantity}
+                  value={quantity}
+                  onChange={(e) => {
+                    const next = Number(e.target.value);
+                    setQuantity(next);
+                    setCouponPreview(null);
+                  }}
+                  className="w-28 rounded-lg border border-ink-200 px-2 py-1.5 text-right text-sm text-ink-900 focus:outline-none focus:ring-2 focus:ring-brand-400"
+                />
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={SLIDER_STEPS}
+                value={quantityToSliderPos(quantity, item.minQuantity, item.maxQuantity)}
+                onChange={(e) => {
+                  const next = sliderPosToQuantity(Number(e.target.value), item.minQuantity, item.maxQuantity);
+                  setQuantity(next);
+                  setCouponPreview(null);
+                }}
+                className="w-full accent-brand-500"
+              />
+              <div className="mt-1 flex justify-between text-xs text-ink-400">
+                <span>Min {item.minQuantity.toLocaleString("fr-FR")}</span>
+                <span>Max {item.maxQuantity.toLocaleString("fr-FR")}</span>
+              </div>
+
+              <div className="mt-3 flex items-center justify-between rounded-lg bg-ink-50 px-4 py-3">
+                <span className="text-sm text-ink-600">Total à payer</span>
+                {priceLoading ? (
+                  <span className="text-sm text-ink-400">Calcul…</span>
+                ) : livePrice ? (
+                  <span className="text-lg font-semibold text-ink-900">{formatXof(livePrice)}</span>
+                ) : (
+                  <span className="text-sm text-rose-600">Quantité invalide</span>
+                )}
+              </div>
+            </div>
 
             <div>
               <div className="flex items-end gap-2">
