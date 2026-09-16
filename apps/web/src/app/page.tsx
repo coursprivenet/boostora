@@ -2,16 +2,31 @@ import Link from "next/link";
 import { FeatureIcon, type FeatureIconName } from "@/components/FeatureIcon";
 import { HeroIllustration } from "@/components/HeroIllustration";
 
-const FEATURES: { icon: FeatureIconName; title: string; body: string }[] = [
+type Feature = { title: string; body: string } & (
+  | { img: string }
+  | { icon: FeatureIconName }
+);
+
+const FEATURES: Feature[] = [
   {
-    icon: "spread",
-    title: "Livraison échelonnée",
-    body: "Étale ta commande sur plusieurs jours au lieu de tout livrer d'un coup — réduit le risque que la plateforme détecte un pic anormal d'activité.",
+    img: "/illustrations/features/rocket.png",
+    title: "Livraison échelonnée, sur mesure",
+    body: "Étale ta commande sur plusieurs jours au lieu de tout livrer d'un coup — tu choisis le nombre de jours et de lots. Réduit le risque que la plateforme détecte un pic anormal d'activité.",
   },
   {
-    icon: "slider",
+    img: "/illustrations/features/counter.png",
     title: "Montants flexibles",
     body: "Un curseur, pas un formulaire. Choisis la quantité qui te convient et vois le montant se calculer automatiquement, en direct.",
+  },
+  {
+    img: "/illustrations/features/thumbsup.png",
+    title: "Qualité au choix",
+    body: "Plusieurs offres par service — du plus économique (sans garantie) au premium haute qualité avec refill longue durée. À toi de choisir le compromis prix/sécurité.",
+  },
+  {
+    img: "/illustrations/features/astronaut.png",
+    title: "Ciblage géographique",
+    body: "Mix mondial ou pays spécifique selon l'offre choisie — utile si ton audience doit paraître localisée plutôt que générique.",
   },
   {
     icon: "progress",
@@ -19,13 +34,13 @@ const FEATURES: { icon: FeatureIconName; title: string; body: string }[] = [
     body: "Chaque commande a sa barre de progression — tu sais exactement où ça en est, sans avoir à demander.",
   },
   {
-    icon: "support",
+    img: "/illustrations/features/comment.png",
     title: "Support réactif",
     body: "Une question, un souci ? Un ticket suffit — l'équipe répond directement, avec notification par email.",
   },
 ];
 
-const OPERATORS = ["Orange Money", "Moov Money", "Coris Money", "Sank Money", "Telecel Money"];
+const OPERATORS = ["Orange Money", "Moov Money", "Coris Money", "Sank Money", "Telecel Money", "Carte bancaire"];
 
 export default function HomePage() {
   return (
@@ -73,15 +88,20 @@ export default function HomePage() {
           <h2 className="text-center text-2xl font-semibold text-ink-900">
             Pourquoi commander sur Boostora
           </h2>
-          <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {FEATURES.map((f) => (
               <div
                 key={f.title}
-                className="rounded-xl2 border-2 border-ink-900 bg-white p-5 text-center"
+                className="flex flex-col items-center rounded-xl2 border-2 border-ink-900 bg-white p-6 text-center"
               >
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border-2 border-ink-900 bg-brand-500">
-                  <FeatureIcon name={f.icon} className="h-7 w-7 text-ink-900" />
-                </div>
+                {"img" in f ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- static illustration asset
+                  <img src={f.img} alt="" className="h-32 w-auto object-contain" />
+                ) : (
+                  <div className="flex h-32 w-32 items-center justify-center rounded-full border-2 border-ink-900 bg-brand-500">
+                    <FeatureIcon name={f.icon} className="h-12 w-12 text-ink-900" />
+                  </div>
+                )}
                 <h3 className="mt-4 text-sm font-semibold text-ink-900">{f.title}</h3>
                 <p className="mt-1.5 text-xs leading-relaxed text-ink-500">{f.body}</p>
               </div>
