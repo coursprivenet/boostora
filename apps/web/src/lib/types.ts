@@ -196,6 +196,16 @@ export interface TicketDetail extends TicketSummary {
   messages: TicketMessage[];
 }
 
+export interface AuditLogRow {
+  id: string;
+  userId: string | null;
+  actorEmail: string;
+  action: string;
+  targetId: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+}
+
 export interface NotificationItem {
   id: string;
   type: string;

@@ -12,6 +12,7 @@ const NAV = [
   { href: "/admin/categories", label: "Catégories" },
   { href: "/admin/exchange-rate", label: "Taux de change" },
   { href: "/admin/users", label: "Utilisateurs" },
+  { href: "/admin/audit-logs", label: "Journal d'audit" },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

@@ -26,10 +26,26 @@ export class AuditLogService {
     }
   }
 
+  /**
+   * userId has no FK relation on purpose — an audit entry must survive the actor's
+   * account being deleted. Emails are resolved separately and joined in memory.
+   */
   async list(limit = 200) {
-    return this.prisma.auditLog.findMany({
+    const logs = await this.prisma.auditLog.findMany({
       orderBy: { createdAt: "desc" },
       take: limit,
     });
+
+    const userIds = [...new Set(logs.map((l) => l.userId).filter((id): id is string => !!id))];
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, email: true },
+    });
+    const emailById = new Map(users.map((u) => [u.id, u.email]));
+
+    return logs.map((log) => ({
+      ...log,
+      actorEmail: log.userId ? (emailById.get(log.userId) ?? "Compte supprimé") : "Système",
+    }));
   }
 }
