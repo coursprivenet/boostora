@@ -96,7 +96,10 @@ export class AuthService {
 
     const passwordHash = await bcrypt.hash(dto.newPassword, BCRYPT_ROUNDS);
     await this.prisma.$transaction([
-      this.prisma.user.update({ where: { id: resetToken.userId }, data: { passwordHash } }),
+      this.prisma.user.update({
+        where: { id: resetToken.userId },
+        data: { passwordHash, passwordChangedAt: new Date() },
+      }),
       this.prisma.passwordResetToken.update({
         where: { id: resetToken.id },
         data: { usedAt: new Date() },
@@ -121,8 +124,15 @@ export class AuthService {
     }
 
     const passwordHash = await bcrypt.hash(dto.newPassword, BCRYPT_ROUNDS);
-    await this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash, passwordChangedAt: new Date() },
+    });
     await this.auditLog.record(userId, "user.password_change", userId);
+
+    // The caller's own current token would otherwise die the instant passwordChangedAt
+    // passes its iat — hand back a fresh one so their session survives the change.
+    return this.buildAuthResponse(user.id, user.email, user.role);
   }
 
   private buildAuthResponse(id: string, email: string, role: string) {

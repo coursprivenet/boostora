@@ -2,13 +2,15 @@
 
 import { useEffect, useState, FormEvent } from "react";
 import { useRequireAuth } from "@/lib/use-require-auth";
+import { useAuth } from "@/lib/auth-context";
 import { api, ApiError } from "@/lib/api";
-import { AuthMeResponse } from "@/lib/types";
+import { AuthMeResponse, AuthResponse } from "@/lib/types";
 import { Input } from "@/components/Input";
 import { Button } from "@/components/Button";
 
 export default function AccountPage() {
   const { token, loading: authLoading } = useRequireAuth();
+  const { updateToken } = useAuth();
   const [me, setMe] = useState<AuthMeResponse | null>(null);
 
   const [phone, setPhone] = useState("");
@@ -61,7 +63,12 @@ export default function AccountPage() {
 
     setPasswordBusy(true);
     try {
-      await api.patch("/auth/me/password", { currentPassword, newPassword }, token);
+      const auth = await api.patch<AuthResponse>(
+        "/auth/me/password",
+        { currentPassword, newPassword },
+        token,
+      );
+      updateToken(auth.accessToken);
       setPasswordSaved(true);
       setCurrentPassword("");
       setNewPassword("");

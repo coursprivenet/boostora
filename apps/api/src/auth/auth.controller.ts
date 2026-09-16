@@ -64,8 +64,7 @@ export class AuthController {
   @Throttle(AUTH_THROTTLE)
   @HttpCode(HttpStatus.OK)
   @Patch("me/password")
-  async changePassword(@Body() dto: ChangePasswordDto, @CurrentUser() user: AuthenticatedUser) {
-    await this.auth.changePassword(user.id, dto);
-    return { message: "Mot de passe mis à jour." };
+  changePassword(@Body() dto: ChangePasswordDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.auth.changePassword(user.id, dto);
   }
 }

@@ -60,6 +60,11 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  /// Set whenever the password changes (self-service or reset). Any JWT issued before
+  /// this moment is rejected on the next request — a leaked token must not outlive a
+  /// password change just because it hasn't hit its 7-day expiry yet.
+  passwordChangedAt DateTime?
+
   orders               Order[]
   tickets              Ticket[]
   ticketMessages       TicketMessage[]

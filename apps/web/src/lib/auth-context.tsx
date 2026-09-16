@@ -12,6 +12,7 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, phone?: string) => Promise<void>;
   logout: () => void;
+  updateToken: (accessToken: string) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -57,6 +58,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     persist(auth);
   }
 
+  // Same session, new token only — e.g. after a password change, which the backend
+  // invalidates all older tokens for (including the one that made the request).
+  function updateToken(accessToken: string) {
+    setToken(accessToken);
+    if (!user) return;
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ accessToken, user }));
+    } catch {
+      // ignore
+    }
+  }
+
   function logout() {
     setUser(null);
     setToken(null);
@@ -69,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, login, register, logout, updateToken }}>
       {children}
     </AuthContext.Provider>
   );

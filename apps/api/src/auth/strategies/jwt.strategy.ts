@@ -8,6 +8,8 @@ import { PrismaService } from "../../prisma/prisma.service";
 export interface JwtPayload {
   sub: string;
   role: UserRole;
+  /** Standard JWT claim, seconds since epoch — passport-jwt decodes it onto the payload. */
+  iat: number;
 }
 
 export interface AuthenticatedUser {
@@ -37,6 +39,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
     if (!user) {
       throw new UnauthorizedException("Compte introuvable");
+    }
+    if (user.passwordChangedAt && payload.iat * 1000 < user.passwordChangedAt.getTime()) {
+      throw new UnauthorizedException("Session expirée suite au changement de mot de passe");
     }
     return { id: user.id, email: user.email, phone: user.phone, role: user.role, createdAt: user.createdAt };
   }
