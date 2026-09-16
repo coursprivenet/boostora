@@ -103,6 +103,9 @@ export interface OrderSummary {
     operatorCode: string | null;
     transactionId: string | null;
     operatorTransactionId: string | null;
+    refundedAt: string | null;
+    refundAmountXof: string | null;
+    refundReason: string | null;
   } | null;
 }
 

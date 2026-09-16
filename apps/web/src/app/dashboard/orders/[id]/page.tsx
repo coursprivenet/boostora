@@ -71,7 +71,8 @@ export default function OrderDetailPage() {
     order.startCount != null && order.remains != null
       ? Math.max(0, order.quantity - order.remains)
       : null;
-  const isPaid = order.payment?.status === "PAID";
+  const isPaid = order.payment?.status === "PAID" || order.payment?.status === "REFUNDED";
+  const isRefunded = order.payment?.status === "REFUNDED";
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-10">
@@ -154,7 +155,14 @@ export default function OrderDetailPage() {
       {isPaid && order.payment && (
         <div className="mt-6 rounded-xl2 border border-ink-100 bg-white p-6 shadow-soft print:border-0 print:shadow-none">
           <div className="mb-4 flex items-center justify-between print:hidden">
-            <h2 className="text-sm font-semibold text-ink-900">Reçu de paiement</h2>
+            <h2 className="text-sm font-semibold text-ink-900">
+              Reçu de paiement
+              {isRefunded && (
+                <span className="ml-2 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
+                  Remboursé
+                </span>
+              )}
+            </h2>
             <Button variant="secondary" onClick={() => window.print()}>
               Imprimer
             </Button>
@@ -200,6 +208,30 @@ export default function OrderDetailPage() {
                   {order.payment.operatorTransactionId}
                 </dd>
               </div>
+            )}
+            {isRefunded && order.payment.refundedAt && (
+              <>
+                <div>
+                  <dt className="text-ink-400">Remboursé le</dt>
+                  <dd className="font-medium text-ink-900">
+                    {new Date(order.payment.refundedAt).toLocaleString("fr-FR")}
+                  </dd>
+                </div>
+                {order.payment.refundAmountXof && (
+                  <div>
+                    <dt className="text-ink-400">Montant remboursé</dt>
+                    <dd className="font-medium text-ink-900">
+                      {formatXof(order.payment.refundAmountXof)}
+                    </dd>
+                  </div>
+                )}
+                {order.payment.refundReason && (
+                  <div className="col-span-2">
+                    <dt className="text-ink-400">Motif</dt>
+                    <dd className="font-medium text-ink-900">{order.payment.refundReason}</dd>
+                  </div>
+                )}
+              </>
             )}
           </dl>
         </div>

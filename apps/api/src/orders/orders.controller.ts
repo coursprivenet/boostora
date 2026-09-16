@@ -8,6 +8,7 @@ import { OrdersService } from "./orders.service";
 import { CreateOrderDto } from "./dto/create-order.dto";
 import { SendOtpDto } from "./dto/send-otp.dto";
 import { ConfirmPaymentDto } from "./dto/confirm-payment.dto";
+import { RefundOrderDto } from "./dto/refund-order.dto";
 
 @Controller("orders")
 export class OrdersController {
@@ -69,5 +70,15 @@ export class OrdersController {
   @Post(":id/refill")
   requestRefill(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string) {
     return this.orders.requestRefill(user.id, id);
+  }
+
+  @Roles(UserRole.ADMIN)
+  @Post(":id/refund")
+  adminRefund(
+    @Param("id") id: string,
+    @Body() dto: RefundOrderDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.orders.adminRefund(id, dto, user.id);
   }
 }

@@ -20,6 +20,7 @@ import { NotificationsService } from "../notifications/notifications.service";
 import { CreateOrderDto } from "./dto/create-order.dto";
 import { SendOtpDto } from "./dto/send-otp.dto";
 import { ConfirmPaymentDto } from "./dto/confirm-payment.dto";
+import { RefundOrderDto } from "./dto/refund-order.dto";
 
 const RETRYABLE_PANELFOLLOWS_HTTP_STATUSES = [429, 502, 503];
 
@@ -612,6 +613,51 @@ export class OrdersService {
       }
       throw err;
     }
+  }
+
+  /**
+   * Refunds are never automated via Yengapay (no payout API is integrated) — this records
+   * a mobile money transfer the admin has already sent manually outside this app, per the
+   * process refund-policy.tsx describes to clients.
+   */
+  async adminRefund(orderId: string, dto: RefundOrderDto, actorUserId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: { payment: true },
+    });
+    if (!order || !order.payment) {
+      throw new NotFoundException("Commande ou paiement introuvable");
+    }
+    if (order.payment.status !== PaymentStatus.PAID) {
+      throw new BadRequestException("Seule une commande payée peut être remboursée");
+    }
+
+    const amountXof = dto.amountXof ?? Number(order.payment.amountXof);
+    if (amountXof > Number(order.payment.amountXof)) {
+      throw new BadRequestException("Le montant du remboursement dépasse le montant payé");
+    }
+
+    await this.prisma.payment.update({
+      where: { id: order.payment.id },
+      data: {
+        status: PaymentStatus.REFUNDED,
+        refundedAt: new Date(),
+        refundAmountXof: amountXof,
+        refundReason: dto.reason,
+        refundedByUserId: actorUserId,
+      },
+    });
+
+    await this.auditLog.record(actorUserId, "order.refund", order.id, { amountXof, reason: dto.reason });
+    await this.notifications.notify(
+      order.userId,
+      "order.refunded",
+      "Remboursement effectué",
+      `Un remboursement de ${amountXof} FCFA a été envoyé sur ton compte mobile money.`,
+      `/dashboard/orders/${order.id}`,
+    );
+
+    return { status: "refunded", amountXof };
   }
 
   private async getOwnedOrderWithProviderInfoOrThrow(userId: string, orderId: string) {

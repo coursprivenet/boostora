@@ -18,6 +18,7 @@ enum PaymentStatus {
   PAID
   EXPIRED
   FAILED
+  REFUNDED
 }
 
 enum OrderStatus {
@@ -272,6 +273,13 @@ model Payment {
   /// The mobile operator's own transaction reference (Orange/Moov/etc), only known via
   /// the webhook's paymentSourceTransactionID — needed if the client disputes with their operator.
   operatorTransactionId String?
+
+  /// Refunds are a manual admin action (mobile money sent back outside this app, per
+  /// refund-policy.tsx) — these fields are the record of that action, not a trigger for it.
+  refundedAt       DateTime?
+  refundAmountXof  Decimal?  @db.Decimal(12, 2)
+  refundReason     String?
+  refundedByUserId String?
 
   rawInitResponse    Json?
   rawConfirmResponse Json?
