@@ -2,6 +2,7 @@ import { api } from "@/lib/api";
 import { CatalogItem } from "@/lib/types";
 import { ServiceCard } from "@/components/ServiceCard";
 import { FeatureIcon, type FeatureIconName } from "@/components/FeatureIcon";
+import { HeroIllustration } from "@/components/HeroIllustration";
 
 function groupByCategory(items: CatalogItem[]) {
   const groups = new Map<string, CatalogItem[]>();
@@ -59,12 +60,7 @@ export default async function HomePage() {
               Followers, vues, likes et engagement, livrés rapidement et payables en Mobile Money.
             </p>
           </div>
-          {/* eslint-disable-next-line @next/next/no-img-element -- static illustration asset, not a dynamic/optimized image */}
-          <img
-            src="/illustrations/hero.svg"
-            alt=""
-            className="animate-hero-float mx-auto w-full max-w-lg lg:max-w-none"
-          />
+          <HeroIllustration />
         </div>
       </section>
 
