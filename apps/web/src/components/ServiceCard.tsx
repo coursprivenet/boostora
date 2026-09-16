@@ -18,6 +18,11 @@ export function ServiceCard({ item }: { item: CatalogItem }) {
         {item.description && (
           <p className="mt-1.5 line-clamp-2 text-sm text-ink-500">{item.description}</p>
         )}
+        {item.riskWarning && (
+          <p className="mt-2 rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800">
+            ⚠ {item.riskWarning}
+          </p>
+        )}
         <p className="mt-3 text-xs text-ink-400">
           Min {item.minQuantity.toLocaleString("fr-FR")} · Max {item.maxQuantity.toLocaleString("fr-FR")}
         </p>

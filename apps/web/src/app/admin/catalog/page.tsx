@@ -16,6 +16,7 @@ interface FormState {
   categoryId: string;
   name: string;
   description: string;
+  riskWarning: string;
   pricingRuleType: PricingRuleType;
   pricingValue: string;
   roundingStep: string;
@@ -28,6 +29,7 @@ const EMPTY_FORM: FormState = {
   categoryId: "",
   name: "",
   description: "",
+  riskWarning: "",
   pricingRuleType: "PERCENT_MARGIN",
   pricingValue: "60",
   roundingStep: "",
@@ -100,6 +102,7 @@ export default function AdminCatalogPage() {
       categoryId: entry.category.id,
       name: entry.name,
       description: entry.description ?? "",
+      riskWarning: entry.riskWarning ?? "",
       pricingRuleType: "PERCENT_MARGIN",
       pricingValue: "",
       roundingStep: "",
@@ -119,6 +122,7 @@ export default function AdminCatalogPage() {
             categoryId: form.categoryId || undefined,
             name: form.name,
             description: form.description || undefined,
+            riskWarning: form.riskWarning || undefined,
             isVisible: form.isVisible,
             ...(form.pricingValue
               ? { pricingRuleType: form.pricingRuleType, pricingValue: Number(form.pricingValue) }
@@ -135,6 +139,7 @@ export default function AdminCatalogPage() {
             categoryId: form.categoryId,
             name: form.name,
             description: form.description || undefined,
+            riskWarning: form.riskWarning || undefined,
             pricingRuleType: form.pricingRuleType,
             pricingValue: Number(form.pricingValue),
             roundingStep: form.roundingStep ? Number(form.roundingStep) : undefined,
@@ -269,6 +274,19 @@ export default function AdminCatalogPage() {
             onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
           />
         </div>
+
+        <label className="mt-4 block">
+          <span className="mb-1.5 block text-sm font-medium text-ink-700">
+            Avertissement (optionnel) — affiché en évidence sur la fiche et au checkout
+          </span>
+          <textarea
+            rows={2}
+            value={form.riskWarning}
+            onChange={(e) => setForm((f) => ({ ...f, riskWarning: e.target.value }))}
+            placeholder="ex: Pas de refill, résultats non garantis"
+            className="w-full rounded-lg border border-ink-200 px-3 py-2.5 text-sm text-ink-900 focus:outline-none focus:ring-2 focus:ring-brand-400"
+          />
+        </label>
 
         <label className="mt-4 flex items-center gap-2 text-sm text-ink-700">
           <input

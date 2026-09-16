@@ -34,6 +34,10 @@ export class UpsertCatalogServiceDto {
   @IsBoolean()
   isVisible?: boolean;
 
+  @IsOptional()
+  @IsString()
+  riskWarning?: string;
+
   @IsEnum(PricingRuleType)
   pricingRuleType!: PricingRuleType;
 

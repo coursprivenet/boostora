@@ -21,6 +21,7 @@ export interface CatalogItem {
   id: string;
   name: string;
   description: string | null;
+  riskWarning: string | null;
   category: { slug: string; name: string };
   platform: string;
   unit: string;
@@ -132,6 +133,7 @@ export interface CatalogAdminItem {
   id: string;
   name: string;
   description: string | null;
+  riskWarning: string | null;
   isVisible: boolean;
   displayOrder: number;
   category: { id: string; name: string; slug: string };

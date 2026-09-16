@@ -122,6 +122,11 @@ model CatalogService {
   displayOrder Int     @default(0)
   isVisible    Boolean @default(true)
 
+  /// Shown as a prominent warning on the service card and at checkout, e.g. "no refill,
+  /// results not guaranteed" — set by an admin who's read the provider's own service
+  /// description (some carry real warnings like the ones PanelFollows' own catalog does).
+  riskWarning String?
+
   pricingRuleType PricingRuleType
   pricingValue    Decimal @db.Decimal(12, 4)
   roundingStep    Decimal? @db.Decimal(12, 4)
@@ -169,6 +174,10 @@ model Order {
   couponId    String?
   coupon      Coupon? @relation(fields: [couponId], references: [id])
   discountXof Decimal @default(0) @db.Decimal(12, 2)
+
+  /// Set server-side at order creation when the client confirms the ToS/refund-policy
+  /// checkbox — real evidence for a dispute, not just a client-side UI gate.
+  termsAcceptedAt DateTime?
 
   paymentStatus PaymentStatus @default(PENDING)
   orderStatus   OrderStatus   @default(PENDING_PAYMENT)

@@ -123,6 +123,7 @@ export class OrdersService {
         marginXof: marginAfterDiscount.toString(),
         couponId,
         discountXof: discountXof.toString(),
+        termsAcceptedAt: new Date(),
       },
     });
 

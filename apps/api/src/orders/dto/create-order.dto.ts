@@ -1,4 +1,4 @@
-import { IsInt, IsOptional, IsPositive, IsString, IsUrl } from "class-validator";
+import { Equals, IsInt, IsOptional, IsPositive, IsString, IsUrl } from "class-validator";
 
 export class CreateOrderDto {
   @IsString()
@@ -14,4 +14,8 @@ export class CreateOrderDto {
   @IsOptional()
   @IsString()
   couponCode?: string;
+
+  /** Must be explicitly true — enforced server-side, not just a disabled checkout button. */
+  @Equals(true)
+  acceptedTerms!: boolean;
 }
