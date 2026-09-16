@@ -18,6 +18,7 @@ export interface AuthenticatedUser {
   phone: string | null;
   role: UserRole;
   createdAt: Date;
+  emailVerifiedAt: Date | null;
 }
 
 @Injectable()
@@ -51,6 +52,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (passwordChangedAtSec !== null && payload.iat < passwordChangedAtSec) {
       throw new UnauthorizedException("Session expirée suite au changement de mot de passe");
     }
-    return { id: user.id, email: user.email, phone: user.phone, role: user.role, createdAt: user.createdAt };
+    return {
+      id: user.id,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      createdAt: user.createdAt,
+      emailVerifiedAt: user.emailVerifiedAt,
+    };
   }
 }

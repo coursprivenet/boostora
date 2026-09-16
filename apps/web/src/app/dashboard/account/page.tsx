@@ -25,6 +25,10 @@ export default function AccountPage() {
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordBusy, setPasswordBusy] = useState(false);
 
+  const [resendSaved, setResendSaved] = useState(false);
+  const [resendError, setResendError] = useState<string | null>(null);
+  const [resendBusy, setResendBusy] = useState(false);
+
   const [logoutAllConfirming, setLogoutAllConfirming] = useState(false);
   const [logoutAllSaved, setLogoutAllSaved] = useState(false);
   const [logoutAllError, setLogoutAllError] = useState<string | null>(null);
@@ -85,6 +89,20 @@ export default function AccountPage() {
     }
   }
 
+  async function resendVerification() {
+    if (!token) return;
+    setResendError(null);
+    setResendBusy(true);
+    try {
+      await api.post("/auth/me/resend-verification", undefined, token);
+      setResendSaved(true);
+    } catch (err) {
+      setResendError(err instanceof ApiError ? err.message : "Erreur, réessaie");
+    } finally {
+      setResendBusy(false);
+    }
+  }
+
   async function handleLogoutAll() {
     if (!token) return;
     setLogoutAllError(null);
@@ -113,7 +131,31 @@ export default function AccountPage() {
       <div className="mt-6 rounded-xl2 border border-ink-100 bg-white p-6 shadow-soft">
         <h2 className="mb-4 text-sm font-semibold text-ink-900">Profil</h2>
         <form onSubmit={saveProfile} className="flex flex-col gap-4">
-          <Input label="Email" value={me.email} disabled />
+          <div>
+            <Input label="Email" value={me.email} disabled />
+            <div className="mt-1.5 flex items-center gap-2">
+              {me.emailVerifiedAt ? (
+                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                  Email vérifié
+                </span>
+              ) : (
+                <>
+                  <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
+                    Email non vérifié
+                  </span>
+                  <button
+                    type="button"
+                    disabled={resendBusy || resendSaved}
+                    onClick={resendVerification}
+                    className="text-xs font-medium text-ink-600 hover:underline disabled:text-ink-300"
+                  >
+                    {resendSaved ? "Lien envoyé" : "Renvoyer l'email"}
+                  </button>
+                </>
+              )}
+            </div>
+            {resendError && <p className="mt-1 text-xs text-rose-600">{resendError}</p>}
+          </div>
           <Input
             label="Téléphone"
             placeholder="70707070"

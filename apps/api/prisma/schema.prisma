@@ -65,11 +65,17 @@ model User {
   /// password change just because it hasn't hit its 7-day expiry yet.
   passwordChangedAt DateTime?
 
-  orders               Order[]
-  tickets              Ticket[]
-  ticketMessages       TicketMessage[]
-  notifications        Notification[]
-  passwordResetTokens  PasswordResetToken[]
+  /// Null until the client clicks the link from the registration email. Not currently
+  /// gating any action (checkout, etc.) — tracked and self-service-resendable so that
+  /// becomes possible later without a schema change.
+  emailVerifiedAt DateTime?
+
+  orders                 Order[]
+  tickets                Ticket[]
+  ticketMessages         TicketMessage[]
+  notifications          Notification[]
+  passwordResetTokens    PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
 
   @@map("users")
 }
@@ -419,4 +425,19 @@ model PasswordResetToken {
 
   @@index([userId])
   @@map("password_reset_tokens")
+}
+
+model EmailVerificationToken {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// SHA-256 of the raw token sent in the email — never store the raw token itself.
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@map("email_verification_tokens")
 }

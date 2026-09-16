@@ -12,9 +12,11 @@ import { ForgotPasswordDto } from "./dto/forgot-password.dto";
 import { ResetPasswordDto } from "./dto/reset-password.dto";
 import { UpdateProfileDto } from "./dto/update-profile.dto";
 import { ChangePasswordDto } from "./dto/change-password.dto";
+import { VerifyEmailDto } from "./dto/verify-email.dto";
 
 const BCRYPT_ROUNDS = 12;
 const RESET_TOKEN_TTL_MS = 30 * 60 * 1000;
+const VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class AuthService {
@@ -35,6 +37,10 @@ export class AuthService {
     const user = await this.prisma.user.create({
       data: { email: dto.email, phone: dto.phone, passwordHash },
     });
+
+    // Fire-and-forget, same as every other email in this app — a Resend hiccup must
+    // never block registration. Verification is not required to log in or order today.
+    void this.sendVerificationEmail(user.id, user.email);
 
     return this.buildAuthResponse(user.id, user.email, user.role);
   }
@@ -111,7 +117,14 @@ export class AuthService {
     return this.prisma.user.update({
       where: { id: userId },
       data: { phone: dto.phone },
-      select: { id: true, email: true, phone: true, role: true, createdAt: true },
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        role: true,
+        createdAt: true,
+        emailVerifiedAt: true,
+      },
     });
   }
 
@@ -149,6 +162,52 @@ export class AuthService {
 
     // Same reasoning as changePassword: this action invalidates the caller's own token too.
     return this.buildAuthResponse(user.id, user.email, user.role);
+  }
+
+  private async sendVerificationEmail(userId: string, email: string) {
+    const rawToken = randomBytes(32).toString("hex");
+    const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+
+    await this.prisma.emailVerificationToken.updateMany({
+      where: { userId, usedAt: null },
+      data: { usedAt: new Date() },
+    });
+    await this.prisma.emailVerificationToken.create({
+      data: { userId, tokenHash, expiresAt: new Date(Date.now() + VERIFICATION_TOKEN_TTL_MS) },
+    });
+
+    const html = renderNotificationEmail(
+      "Confirme ton adresse email",
+      "Bienvenue sur Boostora. Clique sur le lien ci-dessous pour confirmer que cette adresse t'appartient. Ce lien expire dans 24 heures.",
+      `/verify-email?token=${rawToken}`,
+    );
+    await this.email.send(email, "Confirme ton email — Boostora", html);
+  }
+
+  async verifyEmail(dto: VerifyEmailDto) {
+    const tokenHash = createHash("sha256").update(dto.token).digest("hex");
+    const verifyToken = await this.prisma.emailVerificationToken.findUnique({ where: { tokenHash } });
+
+    if (!verifyToken || verifyToken.usedAt || verifyToken.expiresAt < new Date()) {
+      throw new BadRequestException("Lien invalide ou expiré");
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: verifyToken.userId },
+        data: { emailVerifiedAt: new Date() },
+      }),
+      this.prisma.emailVerificationToken.update({
+        where: { id: verifyToken.id },
+        data: { usedAt: new Date() },
+      }),
+    ]);
+  }
+
+  async resendVerificationEmail(userId: string) {
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    if (user.emailVerifiedAt) return;
+    void this.sendVerificationEmail(user.id, user.email);
   }
 
   private buildAuthResponse(id: string, email: string, role: string) {

@@ -17,6 +17,7 @@ export interface AuthMeResponse {
   phone: string | null;
   role: UserRole;
   createdAt: string;
+  emailVerifiedAt: string | null;
 }
 
 export interface Category {

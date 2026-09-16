@@ -7,6 +7,7 @@ import { ForgotPasswordDto } from "./dto/forgot-password.dto";
 import { ResetPasswordDto } from "./dto/reset-password.dto";
 import { UpdateProfileDto } from "./dto/update-profile.dto";
 import { ChangePasswordDto } from "./dto/change-password.dto";
+import { VerifyEmailDto } from "./dto/verify-email.dto";
 import { Public } from "./decorators/public.decorator";
 import { CurrentUser } from "./decorators/current-user.decorator";
 import { AuthenticatedUser } from "./strategies/jwt.strategy";
@@ -73,5 +74,22 @@ export class AuthController {
   @Post("me/logout-all-sessions")
   logoutAllSessions(@CurrentUser() user: AuthenticatedUser) {
     return this.auth.logoutAllSessions(user.id);
+  }
+
+  @Public()
+  @Throttle(AUTH_THROTTLE)
+  @HttpCode(HttpStatus.OK)
+  @Post("verify-email")
+  async verifyEmail(@Body() dto: VerifyEmailDto) {
+    await this.auth.verifyEmail(dto);
+    return { message: "Email confirmé." };
+  }
+
+  @Throttle(AUTH_THROTTLE)
+  @HttpCode(HttpStatus.OK)
+  @Post("me/resend-verification")
+  async resendVerification(@CurrentUser() user: AuthenticatedUser) {
+    await this.auth.resendVerificationEmail(user.id);
+    return { message: "Si ton email n'est pas encore confirmé, un nouveau lien vient d'être envoyé." };
   }
 }
