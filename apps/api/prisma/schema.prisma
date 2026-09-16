@@ -267,6 +267,12 @@ model Payment {
   status                  PaymentStatus @default(PENDING)
   expiresAt               DateTime?
 
+  /// Yengapay's own transaction id — from the sync /pay DONE response or the webhook's transId.
+  transactionId String?
+  /// The mobile operator's own transaction reference (Orange/Moov/etc), only known via
+  /// the webhook's paymentSourceTransactionID — needed if the client disputes with their operator.
+  operatorTransactionId String?
+
   rawInitResponse    Json?
   rawConfirmResponse Json?
   rawWebhookPayload  Json?

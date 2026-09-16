@@ -10,7 +10,7 @@ import Decimal from "decimal.js";
 import { PrismaService } from "../prisma/prisma.service";
 import { CatalogService } from "../catalog/catalog.service";
 import { YengapayClient } from "../yengapay/yengapay.client";
-import { YengapayApiError } from "../yengapay/yengapay.types";
+import { YengapayApiError, YengapayPaymentWebhook } from "../yengapay/yengapay.types";
 import { PanelFollowsClient } from "../panelfollows/panelfollows.client";
 import { PanelFollowsApiError } from "../panelfollows/panelfollows.types";
 import { mapProviderOrderStatus } from "../panelfollows/order-status-mapper";
@@ -275,7 +275,7 @@ export class OrdersService {
     await this.prisma.$transaction([
       this.prisma.payment.update({
         where: { id: payment.id },
-        data: { status: PaymentStatus.PAID, feesXof: result.fees },
+        data: { status: PaymentStatus.PAID, feesXof: result.fees, transactionId: result.transactionId },
       }),
       this.prisma.order.update({
         where: { id: order.id },
@@ -308,7 +308,7 @@ export class OrdersService {
    * marking PAID and submitting to PanelFollows both no-op if already done — the
    * webhook may well arrive after the synchronous /pay confirmation already handled it.
    */
-  async confirmPaymentFromWebhook(reference: string, rawWebhookPayload: object) {
+  async confirmPaymentFromWebhook(reference: string, webhookBody: YengapayPaymentWebhook) {
     const payment = await this.prisma.payment.findUnique({ where: { reference } });
     if (!payment) {
       this.logger.warn(`Yengapay webhook for unknown reference=${reference}`);
@@ -319,7 +319,14 @@ export class OrdersService {
       await this.prisma.$transaction([
         this.prisma.payment.update({
           where: { id: payment.id },
-          data: { status: PaymentStatus.PAID, rawWebhookPayload },
+          data: {
+            status: PaymentStatus.PAID,
+            rawWebhookPayload: webhookBody as unknown as object,
+            // The sync /pay confirmation may have already set transactionId — never overwrite
+            // it with a different value, but operatorTransactionId is only ever known here.
+            transactionId: payment.transactionId ?? webhookBody.transId,
+            operatorTransactionId: webhookBody.paymentSourceTransactionID,
+          },
         }),
         this.prisma.order.update({
           where: { id: payment.orderId },
@@ -353,8 +360,15 @@ export class OrdersService {
         );
       }
     } else {
-      // Already confirmed synchronously — still record the webhook payload for audit.
-      await this.prisma.payment.update({ where: { id: payment.id }, data: { rawWebhookPayload } });
+      // Already confirmed synchronously — still record the webhook payload and the
+      // operator's own transaction id, which only ever arrives via this webhook.
+      await this.prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          rawWebhookPayload: webhookBody as unknown as object,
+          operatorTransactionId: webhookBody.paymentSourceTransactionID,
+        },
+      });
     }
 
     await this.ensureSubmittedToProvider(payment.orderId);

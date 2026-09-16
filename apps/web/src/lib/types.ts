@@ -95,7 +95,15 @@ export interface OrderSummary {
   startCount: number | null;
   remains: number | null;
   catalogService: { name: string; description: string | null };
-  payment: { status: string; expiresAt: string | null } | null;
+  payment: {
+    status: string;
+    expiresAt: string | null;
+    reference: string;
+    amountXof: string;
+    operatorCode: string | null;
+    transactionId: string | null;
+    operatorTransactionId: string | null;
+  } | null;
 }
 
 export interface AdminOrder extends OrderSummary {

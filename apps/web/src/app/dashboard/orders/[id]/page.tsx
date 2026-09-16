@@ -71,10 +71,14 @@ export default function OrderDetailPage() {
     order.startCount != null && order.remains != null
       ? Math.max(0, order.quantity - order.remains)
       : null;
+  const isPaid = order.payment?.status === "PAID";
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-10">
-      <Link href="/dashboard" className="mb-6 inline-block text-sm text-ink-500 hover:underline">
+      <Link
+        href="/dashboard"
+        className="mb-6 inline-block text-sm text-ink-500 hover:underline print:hidden"
+      >
         ← Mes commandes
       </Link>
 
@@ -129,7 +133,7 @@ export default function OrderDetailPage() {
         </dl>
 
         {ACTIVE_STATUSES.has(order.orderStatus) && (
-          <div className="mt-5 border-t border-ink-100 pt-4">
+          <div className="mt-5 border-t border-ink-100 pt-4 print:hidden">
             <Button variant="secondary" loading={actionLoading} onClick={handleCancel}>
               Demander l&apos;annulation
             </Button>
@@ -137,15 +141,69 @@ export default function OrderDetailPage() {
         )}
 
         {order.orderStatus === "COMPLETED" && (
-          <div className="mt-5 border-t border-ink-100 pt-4">
+          <div className="mt-5 border-t border-ink-100 pt-4 print:hidden">
             <Button variant="secondary" loading={actionLoading} onClick={handleRefill}>
               Demander un refill
             </Button>
           </div>
         )}
 
-        {actionError && <p className="mt-3 text-sm text-rose-600">{actionError}</p>}
+        {actionError && <p className="mt-3 text-sm text-rose-600 print:hidden">{actionError}</p>}
       </div>
+
+      {isPaid && order.payment && (
+        <div className="mt-6 rounded-xl2 border border-ink-100 bg-white p-6 shadow-soft print:border-0 print:shadow-none">
+          <div className="mb-4 flex items-center justify-between print:hidden">
+            <h2 className="text-sm font-semibold text-ink-900">Reçu de paiement</h2>
+            <Button variant="secondary" onClick={() => window.print()}>
+              Imprimer
+            </Button>
+          </div>
+
+          <p className="mb-4 hidden text-lg font-semibold text-ink-900 print:block">Boostora — Reçu de paiement</p>
+
+          <dl className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <dt className="text-ink-400">Référence Boostora</dt>
+              <dd className="font-mono text-xs font-medium text-ink-900">{order.payment.reference}</dd>
+            </div>
+            <div>
+              <dt className="text-ink-400">Montant payé</dt>
+              <dd className="font-medium text-ink-900">{formatXof(order.payment.amountXof)}</dd>
+            </div>
+            {order.payment.operatorCode && (
+              <div>
+                <dt className="text-ink-400">Opérateur</dt>
+                <dd className="font-medium text-ink-900">{order.payment.operatorCode}</dd>
+              </div>
+            )}
+            {order.paidAt && (
+              <div>
+                <dt className="text-ink-400">Payé le</dt>
+                <dd className="font-medium text-ink-900">
+                  {new Date(order.paidAt).toLocaleString("fr-FR")}
+                </dd>
+              </div>
+            )}
+            {order.payment.transactionId && (
+              <div>
+                <dt className="text-ink-400">ID transaction Yengapay</dt>
+                <dd className="font-mono text-xs font-medium text-ink-900">
+                  {order.payment.transactionId}
+                </dd>
+              </div>
+            )}
+            {order.payment.operatorTransactionId && (
+              <div>
+                <dt className="text-ink-400">ID transaction opérateur</dt>
+                <dd className="font-mono text-xs font-medium text-ink-900">
+                  {order.payment.operatorTransactionId}
+                </dd>
+              </div>
+            )}
+          </dl>
+        </div>
+      )}
     </main>
   );
 }

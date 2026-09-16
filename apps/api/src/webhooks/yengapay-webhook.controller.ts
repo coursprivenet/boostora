@@ -81,10 +81,7 @@ export class YengapayWebhookController {
     });
 
     // reference is the order id we sent as `reference` when creating the payment intent.
-    const { found } = await this.orders.confirmPaymentFromWebhook(
-      body.reference,
-      body as unknown as object,
-    );
+    const { found } = await this.orders.confirmPaymentFromWebhook(body.reference, body);
     if (found) {
       this.logger.log(`Order confirmed PAID via webhook (transId=${externalEventId})`);
     }
