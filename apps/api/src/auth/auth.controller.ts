@@ -3,6 +3,8 @@ import { Throttle } from "@nestjs/throttler";
 import { AuthService } from "./auth.service";
 import { RegisterDto } from "./dto/register.dto";
 import { LoginDto } from "./dto/login.dto";
+import { ForgotPasswordDto } from "./dto/forgot-password.dto";
+import { ResetPasswordDto } from "./dto/reset-password.dto";
 import { Public } from "./decorators/public.decorator";
 import { CurrentUser } from "./decorators/current-user.decorator";
 import { AuthenticatedUser } from "./strategies/jwt.strategy";
@@ -32,5 +34,23 @@ export class AuthController {
   @Get("me")
   me(@CurrentUser() user: AuthenticatedUser) {
     return user;
+  }
+
+  @Public()
+  @Throttle(AUTH_THROTTLE)
+  @HttpCode(HttpStatus.OK)
+  @Post("forgot-password")
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    await this.auth.forgotPassword(dto);
+    return { message: "Si un compte existe avec cet email, un lien de réinitialisation a été envoyé." };
+  }
+
+  @Public()
+  @Throttle(AUTH_THROTTLE)
+  @HttpCode(HttpStatus.OK)
+  @Post("reset-password")
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    await this.auth.resetPassword(dto);
+    return { message: "Mot de passe mis à jour." };
   }
 }

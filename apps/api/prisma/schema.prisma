@@ -59,10 +59,11 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  orders         Order[]
-  tickets        Ticket[]
-  ticketMessages TicketMessage[]
-  notifications  Notification[]
+  orders               Order[]
+  tickets              Ticket[]
+  ticketMessages       TicketMessage[]
+  notifications        Notification[]
+  passwordResetTokens  PasswordResetToken[]
 
   @@map("users")
 }
@@ -384,4 +385,19 @@ model Notification {
   @@index([userId])
   @@index([userId, isRead])
   @@map("notifications")
+}
+
+model PasswordResetToken {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// SHA-256 of the raw token sent in the email — never store the raw token itself.
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@map("password_reset_tokens")
 }

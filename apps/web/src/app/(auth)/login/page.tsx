@@ -50,6 +50,9 @@ export default function LoginPage() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
+        <Link href="/forgot-password" className="text-sm text-ink-500 hover:underline">
+          Mot de passe oublié ?
+        </Link>
         {error && <p className="text-sm text-rose-600">{error}</p>}
         <Button type="submit" loading={loading} className="mt-2 w-full">
           Se connecter
