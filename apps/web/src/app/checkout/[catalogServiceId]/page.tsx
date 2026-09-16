@@ -227,7 +227,18 @@ export default function CheckoutPage() {
   if (!item) return <main className="mx-auto max-w-lg px-6 py-10 text-ink-400">Chargement…</main>;
 
   return (
-    <main className="mx-auto max-w-lg px-6 py-10">
+    <main className="mx-auto max-w-5xl px-6 py-10">
+    <div className="lg:grid lg:grid-cols-[1fr_1.1fr] lg:items-start lg:gap-12">
+    <div className="hidden lg:block">
+      {/* eslint-disable-next-line @next/next/no-img-element -- static illustration asset */}
+      <img
+        src="/illustrations/checkout/mascot.svg"
+        alt=""
+        className="animate-hero-float sticky top-28 w-full max-w-md"
+        style={{ animationDuration: "6s" }}
+      />
+    </div>
+    <div className="mx-auto max-w-lg lg:mx-0 lg:max-w-none">
       <h1 className="text-xl font-semibold text-ink-900">{item.name}</h1>
       <p className="mt-1 text-sm text-ink-500">{item.description}</p>
 
@@ -562,10 +573,12 @@ export default function CheckoutPage() {
       </div>
 
       {step.kind !== "success" && step.kind !== "pending" && (
-        <Link href="/" className="mt-4 inline-block text-sm text-ink-500 hover:underline">
+        <Link href="/services" className="mt-4 inline-block text-sm text-ink-500 hover:underline">
           ← Retour au catalogue
         </Link>
       )}
+    </div>
+    </div>
     </main>
   );
 }

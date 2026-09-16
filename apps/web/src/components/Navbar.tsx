@@ -35,6 +35,9 @@ export function Navbar() {
         </Link>
         <nav className="flex items-center gap-6 text-sm font-medium text-ink-600">
           <Link href="/" className="hover:text-ink-900">
+            Accueil
+          </Link>
+          <Link href="/services" className="hover:text-ink-900">
             Services
           </Link>
           {!loading && user && (

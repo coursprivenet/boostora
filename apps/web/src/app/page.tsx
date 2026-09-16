@@ -1,18 +1,6 @@
-import { api } from "@/lib/api";
-import { CatalogItem } from "@/lib/types";
-import { ServiceCard } from "@/components/ServiceCard";
+import Link from "next/link";
 import { FeatureIcon, type FeatureIconName } from "@/components/FeatureIcon";
 import { HeroIllustration } from "@/components/HeroIllustration";
-
-function groupByCategory(items: CatalogItem[]) {
-  const groups = new Map<string, CatalogItem[]>();
-  for (const item of items) {
-    const key = item.category.name;
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key)!.push(item);
-  }
-  return groups;
-}
 
 const FEATURES: { icon: FeatureIconName; title: string; body: string }[] = [
   {
@@ -39,15 +27,7 @@ const FEATURES: { icon: FeatureIconName; title: string; body: string }[] = [
 
 const OPERATORS = ["Orange Money", "Moov Money", "Coris Money", "Sank Money", "Telecel Money"];
 
-export default async function HomePage() {
-  let services: CatalogItem[] = [];
-  try {
-    services = await api.get<CatalogItem[]>("/catalog");
-  } catch {
-    services = [];
-  }
-  const grouped = groupByCategory(services);
-
+export default function HomePage() {
   return (
     <main>
       <section className="border-b-2 border-ink-900 bg-[#FFFBF0] px-6 py-14 sm:py-20">
@@ -59,6 +39,12 @@ export default async function HomePage() {
             <p className="mx-auto mt-4 max-w-xl text-ink-500 lg:mx-0">
               Followers, vues, likes et engagement, livrés rapidement et payables en Mobile Money.
             </p>
+            <Link
+              href="/services"
+              className="mt-6 inline-block rounded-lg border-2 border-ink-900 bg-ink-900 px-6 py-3 text-sm font-semibold text-brand-500 transition-colors hover:bg-brand-500 hover:text-ink-900"
+            >
+              Voir les services
+            </Link>
           </div>
           <HeroIllustration />
         </div>
@@ -104,20 +90,17 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-6 py-12">
-        {grouped.size === 0 && (
-          <p className="text-center text-ink-400">Catalogue en cours de préparation.</p>
-        )}
-        {Array.from(grouped.entries()).map(([category, items]) => (
-          <div key={category} className="mb-10">
-            <h2 className="mb-4 text-lg font-semibold text-ink-900">{category}</h2>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {items.map((item) => (
-                <ServiceCard key={item.id} item={item} />
-              ))}
-            </div>
-          </div>
-        ))}
+      <section className="bg-ink-900 px-6 py-14 text-center">
+        <h2 className="text-2xl font-semibold text-white">Prêt à décoller ?</h2>
+        <p className="mx-auto mt-2 max-w-md text-ink-300">
+          Instagram, TikTok, Facebook, YouTube — un catalogue complet t&apos;attend.
+        </p>
+        <Link
+          href="/services"
+          className="mt-6 inline-block rounded-lg border-2 border-brand-500 bg-brand-500 px-6 py-3 text-sm font-semibold text-ink-900 transition-colors hover:bg-ink-900 hover:text-brand-500"
+        >
+          Parcourir le catalogue
+        </Link>
       </section>
     </main>
   );
