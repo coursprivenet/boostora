@@ -25,6 +25,28 @@ function quantityToSliderPos(quantity: number, min: number, max: number) {
   const t = (quantity - min) / (max - min);
   return Math.round(Math.cbrt(Math.max(0, t)) * SLIDER_STEPS);
 }
+// Most real orders are well under 100k — capping the slider's practical ceiling there
+// (instead of the service's raw max, which can run into the millions) keeps every pixel
+// of drag meaningful. Typing a bigger number in the input field still works past this cap.
+function sliderMaxFor(itemMax: number) {
+  return Math.min(itemMax, 100000);
+}
+
+/** Bigger orders are more visible as a sudden spike, so they get a longer recommended
+ * spread — pure heuristic, not from PanelFollows or any external data. */
+function recommendedDripfeedDays(quantity: number) {
+  if (quantity <= 500) return 1;
+  if (quantity <= 2000) return 2;
+  if (quantity <= 5000) return 3;
+  if (quantity <= 20000) return 5;
+  if (quantity <= 50000) return 7;
+  if (quantity <= 100000) return 10;
+  return 14;
+}
+function recommendedDripfeedRuns(days: number, maxRuns: number | null) {
+  const runs = Math.max(2, days * 2); // roughly one batch every 12h
+  return maxRuns ? Math.min(runs, maxRuns) : runs;
+}
 
 type Step =
   | { kind: "form" }
@@ -257,9 +279,13 @@ export default function CheckoutPage() {
                 type="range"
                 min={0}
                 max={SLIDER_STEPS}
-                value={quantityToSliderPos(quantity, item.minQuantity, item.maxQuantity)}
+                value={quantityToSliderPos(quantity, item.minQuantity, sliderMaxFor(item.maxQuantity))}
                 onChange={(e) => {
-                  const next = sliderPosToQuantity(Number(e.target.value), item.minQuantity, item.maxQuantity);
+                  const next = sliderPosToQuantity(
+                    Number(e.target.value),
+                    item.minQuantity,
+                    sliderMaxFor(item.maxQuantity),
+                  );
                   setQuantity(next);
                   setCouponPreview(null);
                 }}
@@ -267,7 +293,10 @@ export default function CheckoutPage() {
               />
               <div className="mt-1 flex justify-between text-xs text-ink-400">
                 <span>Min {item.minQuantity.toLocaleString("fr-FR")}</span>
-                <span>Max {item.maxQuantity.toLocaleString("fr-FR")}</span>
+                <span>
+                  Max {sliderMaxFor(item.maxQuantity).toLocaleString("fr-FR")}
+                  {item.maxQuantity > 100000 && " (curseur) — saisis un nombre plus grand si besoin"}
+                </span>
               </div>
 
               <div className="mt-3 flex items-center justify-between rounded-lg bg-ink-50 px-4 py-3">
@@ -288,14 +317,58 @@ export default function CheckoutPage() {
                   <input
                     type="checkbox"
                     checked={dripfeedEnabled}
-                    onChange={(e) => setDripfeedEnabled(e.target.checked)}
+                    onChange={(e) => {
+                      const enabled = e.target.checked;
+                      setDripfeedEnabled(enabled);
+                      if (enabled) {
+                        const recDays = recommendedDripfeedDays(quantity);
+                        setDripfeedDays(recDays);
+                        setDripfeedRuns(recommendedDripfeedRuns(recDays, item.dripfeedMaxRuns));
+                      }
+                    }}
                   />
                   Étaler la livraison
                   <Tooltip text="Répartit la livraison en plusieurs lots sur plusieurs jours au lieu de tout livrer d'un coup — réduit le risque que la plateforme détecte un pic anormal d'activité et supprime les followers/likes/vues ou restreigne le compte." />
                 </label>
+                <p className="mt-1 text-xs text-ink-400">
+                  Plus la livraison est étalée dans le temps, plus faible est la probabilité que les
+                  followers/likes/vues chutent après coup.
+                </p>
                 {dripfeedEnabled && (
-                  <div className="mt-3 flex gap-3">
-                    <label className="flex-1 text-xs">
+                  <>
+                    <div className="mt-3">
+                      <div className="mb-1.5 flex items-center justify-between text-xs">
+                        <span className="text-ink-500">Sur combien de jours</span>
+                        <span className="font-medium text-ink-700">{dripfeedDays} j</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={1}
+                        max={30}
+                        value={dripfeedDays}
+                        onChange={(e) => setDripfeedDays(Number(e.target.value))}
+                        className="w-full accent-brand-500"
+                      />
+                      <div className="mt-1 flex items-center justify-between text-xs text-ink-400">
+                        <span>
+                          Recommandé pour {quantity.toLocaleString("fr-FR")} unités :{" "}
+                          {recommendedDripfeedDays(quantity)} jours
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const recDays = recommendedDripfeedDays(quantity);
+                            setDripfeedDays(recDays);
+                            setDripfeedRuns(recommendedDripfeedRuns(recDays, item.dripfeedMaxRuns));
+                          }}
+                          className="font-medium text-ink-600 hover:underline"
+                        >
+                          Appliquer
+                        </button>
+                      </div>
+                    </div>
+
+                    <label className="mt-3 block text-xs">
                       <span className="mb-1 block text-ink-500">Nombre de lots</span>
                       <input
                         type="number"
@@ -303,21 +376,10 @@ export default function CheckoutPage() {
                         max={item.dripfeedMaxRuns ?? 1000}
                         value={dripfeedRuns}
                         onChange={(e) => setDripfeedRuns(Math.max(2, Number(e.target.value)))}
-                        className="w-full rounded-lg border border-ink-200 px-2 py-1.5 text-sm"
+                        className="w-28 rounded-lg border border-ink-200 px-2 py-1.5 text-sm"
                       />
                     </label>
-                    <label className="flex-1 text-xs">
-                      <span className="mb-1 block text-ink-500">Sur combien de jours</span>
-                      <input
-                        type="number"
-                        min={1}
-                        max={30}
-                        value={dripfeedDays}
-                        onChange={(e) => setDripfeedDays(Math.max(1, Number(e.target.value)))}
-                        className="w-full rounded-lg border border-ink-200 px-2 py-1.5 text-sm"
-                      />
-                    </label>
-                  </div>
+                  </>
                 )}
                 {dripfeedEnabled && computedIntervalMinutes() != null && (
                   <p className="mt-2 text-xs text-ink-400">
