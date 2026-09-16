@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import { Button } from "./Button";
@@ -9,6 +10,18 @@ import { Button } from "./Button";
 export function Navbar() {
   const { user, token, logout, loading } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
+  const pathname = usePathname();
+
+  function isActive(href: string) {
+    if (href === "/") return pathname === "/";
+    if (href === "/dashboard") return pathname === "/dashboard" || pathname.startsWith("/dashboard/orders/");
+    return pathname === href;
+  }
+  function linkClass(href: string) {
+    return isActive(href)
+      ? "font-semibold text-ink-900 underline decoration-brand-500 decoration-2 underline-offset-4"
+      : "text-ink-600 hover:text-ink-900";
+  }
 
   useEffect(() => {
     if (!token) {
@@ -34,29 +47,29 @@ export function Navbar() {
           Boostora
         </Link>
         <nav className="hidden items-center gap-6 text-sm font-medium text-ink-600 lg:flex">
-          <Link href="/" className="hover:text-ink-900">
+          <Link href="/" className={linkClass("/")}>
             Accueil
           </Link>
-          <Link href="/services" className="hover:text-ink-900">
+          <Link href="/services" className={linkClass("/services")}>
             Services
           </Link>
           {!loading && user && (
-            <Link href="/dashboard" className="hover:text-ink-900">
+            <Link href="/dashboard" className={linkClass("/dashboard")}>
               Mes commandes
             </Link>
           )}
           {!loading && user && (
-            <Link href="/dashboard/support" className="hover:text-ink-900">
+            <Link href="/dashboard/support" className={linkClass("/dashboard/support")}>
               Support
             </Link>
           )}
           {!loading && (user?.role === "ADMIN" || user?.role === "SUPPORT") && (
-            <Link href="/support" className="hover:text-ink-900">
+            <Link href="/support" className={linkClass("/support")}>
               Support (staff)
             </Link>
           )}
           {!loading && user?.role === "ADMIN" && (
-            <Link href="/admin" className="hover:text-ink-900">
+            <Link href="/admin" className={linkClass("/admin")}>
               Admin
             </Link>
           )}
@@ -88,7 +101,7 @@ export function Navbar() {
           )}
           {!loading && !user && (
             <>
-              <Link href="/login" className="hover:text-ink-900">
+              <Link href="/login" className={linkClass("/login")}>
                 Connexion
               </Link>
               <Link href="/register">
@@ -99,7 +112,7 @@ export function Navbar() {
             </>
           )}
           {!loading && user && (
-            <Link href="/dashboard/account" className="hover:text-ink-900">
+            <Link href="/dashboard/account" className={linkClass("/dashboard/account")}>
               Mon compte
             </Link>
           )}

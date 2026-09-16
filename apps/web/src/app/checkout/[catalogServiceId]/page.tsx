@@ -36,6 +36,11 @@ function quantityToSliderPos(quantity: number, min: number, max: number) {
 function sliderMaxFor(itemMax: number) {
   return Math.min(itemMax, 100000);
 }
+// Platform-wide floor: 200 units, even when a provider's own minimum is lower — a
+// service's raw min (sometimes 1, 5, 10...) isn't a real-world useful order size.
+function effectiveMinFor(itemMin: number) {
+  return Math.max(itemMin, 200);
+}
 
 /** Bigger orders are more visible as a sudden spike, so they get a longer recommended
  * spread — pure heuristic, not from PanelFollows or any external data. */
@@ -125,7 +130,7 @@ export default function CheckoutPage() {
       .get<CatalogItem>(`/catalog/${catalogServiceId}`)
       .then((data) => {
         setItem(data);
-        setQuantity(data.minQuantity);
+        setQuantity(effectiveMinFor(data.minQuantity));
       })
       .catch(() => setLoadError("Service introuvable ou indisponible."));
   }, [catalogServiceId]);
@@ -134,7 +139,7 @@ export default function CheckoutPage() {
   // doesn't fire a request per pixel, and stale responses (slow request overtaken by a
   // newer one) are dropped by comparing against the latest request id.
   useEffect(() => {
-    if (!item || !quantity || quantity < item.minQuantity || quantity > item.maxQuantity) {
+    if (!item || !quantity || quantity < effectiveMinFor(item.minQuantity) || quantity > item.maxQuantity) {
       setLivePrice(null);
       return;
     }
@@ -304,7 +309,7 @@ export default function CheckoutPage() {
                 <input
                   type="number"
                   required
-                  min={item.minQuantity}
+                  min={effectiveMinFor(item.minQuantity)}
                   max={item.maxQuantity}
                   value={quantity}
                   onChange={(e) => {
@@ -319,11 +324,11 @@ export default function CheckoutPage() {
                 type="range"
                 min={0}
                 max={SLIDER_STEPS}
-                value={quantityToSliderPos(quantity, item.minQuantity, sliderMaxFor(item.maxQuantity))}
+                value={quantityToSliderPos(quantity, effectiveMinFor(item.minQuantity), sliderMaxFor(item.maxQuantity))}
                 onChange={(e) => {
                   const next = sliderPosToQuantity(
                     Number(e.target.value),
-                    item.minQuantity,
+                    effectiveMinFor(item.minQuantity),
                     sliderMaxFor(item.maxQuantity),
                   );
                   setQuantity(next);
@@ -332,7 +337,7 @@ export default function CheckoutPage() {
                 className="w-full accent-brand-500"
               />
               <div className="mt-1 flex justify-between text-xs text-ink-400">
-                <span>Min {item.minQuantity.toLocaleString("fr-FR")}</span>
+                <span>Min {effectiveMinFor(item.minQuantity).toLocaleString("fr-FR")}</span>
                 <span>
                   Max {sliderMaxFor(item.maxQuantity).toLocaleString("fr-FR")}
                   {item.maxQuantity > 100000 && " (curseur) — saisis un nombre plus grand si besoin"}

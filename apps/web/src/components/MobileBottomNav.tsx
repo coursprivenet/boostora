@@ -71,7 +71,9 @@ export function MobileBottomNav() {
               href={href}
               className="-mt-5 flex flex-col items-center gap-0.5"
             >
-              <span className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-ink-900 bg-brand-500 shadow-card">
+              <span
+                className={`flex h-14 w-14 items-center justify-center rounded-full border-2 border-ink-900 bg-brand-500 shadow-card ${active ? "ring-4 ring-brand-300" : ""}`}
+              >
                 <Icon className="h-7 w-7 text-ink-900" />
               </span>
               <span className="text-[10px] font-semibold text-ink-900">{label}</span>
