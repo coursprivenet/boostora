@@ -1,23 +1,35 @@
 import { ForbiddenException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
+import { EmailService } from "../email/email.service";
+import { renderNotificationEmail } from "../email/email.templates";
 
 @Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly email: EmailService,
+  ) {}
 
   /**
    * Fire-and-forget, like AuditLogService and CouponsService.recordRedemption — a
    * notification is a side effect of something that already happened; it must never
    * roll back or block the real action (an order transition, a ticket reply) that
-   * triggered it.
+   * triggered it. Email rides along as a second channel on the same call rather than
+   * being wired separately at each trigger point — one place decides "the user should
+   * know about this", not two.
    */
   async notify(userId: string, type: string, title: string, body?: string, link?: string) {
     try {
       await this.prisma.notification.create({ data: { userId, type, title, body, link } });
     } catch (err) {
       this.logger.error(`Failed to create notification (${type}) for ${userId}: ${(err as Error).message}`);
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+    if (user) {
+      await this.email.send(user.email, title, renderNotificationEmail(title, body ?? null, link ?? null));
     }
   }
 
