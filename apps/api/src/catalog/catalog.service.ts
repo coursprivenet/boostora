@@ -4,6 +4,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { ExchangeRateService } from "../exchange-rate/exchange-rate.service";
 import { AuditLogService } from "../audit-log/audit-log.service";
 import { computePrice } from "../pricing/pricing.util";
+import { extractDripfeedLimits } from "../panelfollows/dripfeed.util";
 import { UpsertCatalogServiceDto } from "./dto/upsert-catalog-service.dto";
 
 @Injectable()
@@ -183,6 +184,7 @@ export class CatalogService {
         maxPriceXof: s.maxPriceXof?.toString(),
       });
 
+      const dripfeed = extractDripfeedLimits(s.providerService.fieldsSchema);
       return {
         id: s.id,
         name: s.name,
@@ -194,6 +196,9 @@ export class CatalogService {
         minQuantity: s.minQuantityOverride ?? s.providerService.minQuantity,
         maxQuantity: s.maxQuantityOverride ?? s.providerService.maxQuantity,
         priceClientXof: price.priceClientXof.toDecimalPlaces(0).toString(),
+        dripfeedSupported: s.providerService.dripfeedSupported,
+        dripfeedMaxRuns: dripfeed.maxRuns,
+        dripfeedMaxIntervalMinutes: dripfeed.maxIntervalMinutes,
       };
     });
   }
@@ -222,6 +227,7 @@ export class CatalogService {
       maxPriceXof: service.maxPriceXof?.toString(),
     });
 
+    const dripfeed = extractDripfeedLimits(service.providerService.fieldsSchema);
     return {
       id: service.id,
       name: service.name,
@@ -233,6 +239,9 @@ export class CatalogService {
       minQuantity: service.minQuantityOverride ?? service.providerService.minQuantity,
       maxQuantity: service.maxQuantityOverride ?? service.providerService.maxQuantity,
       priceClientXof: price.priceClientXof.toDecimalPlaces(0).toString(),
+      dripfeedSupported: service.providerService.dripfeedSupported,
+      dripfeedMaxRuns: dripfeed.maxRuns,
+      dripfeedMaxIntervalMinutes: dripfeed.maxIntervalMinutes,
     };
   }
 

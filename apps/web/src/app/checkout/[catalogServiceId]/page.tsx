@@ -48,6 +48,10 @@ export default function CheckoutPage() {
 
   const [livePrice, setLivePrice] = useState<string | null>(null);
   const [priceLoading, setPriceLoading] = useState(false);
+
+  const [dripfeedEnabled, setDripfeedEnabled] = useState(false);
+  const [dripfeedRuns, setDripfeedRuns] = useState(5);
+  const [dripfeedDays, setDripfeedDays] = useState(3);
   const previewRequestId = useRef(0);
 
   const [couponCode, setCouponCode] = useState("");
@@ -116,6 +120,12 @@ export default function CheckoutPage() {
     return () => clearTimeout(timer);
   }, [item, quantity]);
 
+  function computedIntervalMinutes(): number | null {
+    if (!item || !dripfeedEnabled) return null;
+    const raw = Math.round((dripfeedDays * 24 * 60) / dripfeedRuns);
+    return item.dripfeedMaxIntervalMinutes ? Math.min(raw, item.dripfeedMaxIntervalMinutes) : raw;
+  }
+
   async function submitOrder(e: FormEvent) {
     e.preventDefault();
     if (!token || !item) return;
@@ -129,6 +139,9 @@ export default function CheckoutPage() {
           targetLink,
           quantity,
           couponCode: couponPreview ? couponCode.trim() : undefined,
+          ...(dripfeedEnabled
+            ? { dripfeedRuns, dripfeedIntervalMinutes: computedIntervalMinutes() }
+            : {}),
           acceptedTerms,
         },
         token,
@@ -195,6 +208,16 @@ export default function CheckoutPage() {
     <main className="mx-auto max-w-lg px-6 py-10">
       <h1 className="text-xl font-semibold text-ink-900">{item.name}</h1>
       <p className="mt-1 text-sm text-ink-500">{item.description}</p>
+
+      <p className="mt-2 rounded-lg bg-ink-50 px-3 py-2 text-xs text-ink-500">
+        Un pic d&apos;activité inhabituel (beaucoup de followers/likes/vues d&apos;un coup) peut être
+        repéré par la plateforme visée et entraîner une suppression partielle ou, plus rarement, une
+        restriction du compte. Ce n&apos;est pas systématique, mais le risque existe
+        {item.dripfeedSupported
+          ? " — l'option « Étaler la livraison » ci-dessous le réduit en imitant une croissance naturelle."
+          : "."}
+      </p>
+
       {item.riskWarning && (
         <p className="mt-2 flex items-start gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
           <span>⚠ {item.riskWarning}</span>
@@ -258,6 +281,51 @@ export default function CheckoutPage() {
                 )}
               </div>
             </div>
+
+            {item.dripfeedSupported && (
+              <div className="rounded-lg border border-ink-100 p-3">
+                <label className="flex items-center gap-2 text-sm font-medium text-ink-700">
+                  <input
+                    type="checkbox"
+                    checked={dripfeedEnabled}
+                    onChange={(e) => setDripfeedEnabled(e.target.checked)}
+                  />
+                  Étaler la livraison
+                  <Tooltip text="Répartit la livraison en plusieurs lots sur plusieurs jours au lieu de tout livrer d'un coup — réduit le risque que la plateforme détecte un pic anormal d'activité et supprime les followers/likes/vues ou restreigne le compte." />
+                </label>
+                {dripfeedEnabled && (
+                  <div className="mt-3 flex gap-3">
+                    <label className="flex-1 text-xs">
+                      <span className="mb-1 block text-ink-500">Nombre de lots</span>
+                      <input
+                        type="number"
+                        min={2}
+                        max={item.dripfeedMaxRuns ?? 1000}
+                        value={dripfeedRuns}
+                        onChange={(e) => setDripfeedRuns(Math.max(2, Number(e.target.value)))}
+                        className="w-full rounded-lg border border-ink-200 px-2 py-1.5 text-sm"
+                      />
+                    </label>
+                    <label className="flex-1 text-xs">
+                      <span className="mb-1 block text-ink-500">Sur combien de jours</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={30}
+                        value={dripfeedDays}
+                        onChange={(e) => setDripfeedDays(Math.max(1, Number(e.target.value)))}
+                        className="w-full rounded-lg border border-ink-200 px-2 py-1.5 text-sm"
+                      />
+                    </label>
+                  </div>
+                )}
+                {dripfeedEnabled && computedIntervalMinutes() != null && (
+                  <p className="mt-2 text-xs text-ink-400">
+                    ≈ 1 lot toutes les {Math.round((computedIntervalMinutes() ?? 0) / 60)}h
+                  </p>
+                )}
+              </div>
+            )}
 
             <div>
               <div className="flex items-end gap-2">

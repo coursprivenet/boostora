@@ -37,6 +37,9 @@ export interface CatalogItem {
   minQuantity: number;
   maxQuantity: number;
   priceClientXof: string;
+  dripfeedSupported: boolean;
+  dripfeedMaxRuns: number | null;
+  dripfeedMaxIntervalMinutes: number | null;
 }
 
 export interface YengapayOperator {

@@ -14,6 +14,7 @@ import { YengapayApiError, YengapayPaymentWebhook } from "../yengapay/yengapay.t
 import { PanelFollowsClient } from "../panelfollows/panelfollows.client";
 import { PanelFollowsApiError } from "../panelfollows/panelfollows.types";
 import { mapProviderOrderStatus } from "../panelfollows/order-status-mapper";
+import { extractDripfeedLimits } from "../panelfollows/dripfeed.util";
 import { AuditLogService } from "../audit-log/audit-log.service";
 import { CouponsService } from "../coupons/coupons.service";
 import { NotificationsService } from "../notifications/notifications.service";
@@ -152,6 +153,23 @@ export class OrdersService {
 
     const priced = await this.catalog.computeOrderPrice(dto.catalogServiceId, dto.quantity);
 
+    const dripfeedRequested = dto.dripfeedRuns != null || dto.dripfeedIntervalMinutes != null;
+    if (dripfeedRequested) {
+      if (dto.dripfeedRuns == null || dto.dripfeedIntervalMinutes == null) {
+        throw new BadRequestException("dripfeedRuns et dripfeedIntervalMinutes doivent être fournis ensemble");
+      }
+      if (!priced.providerService.dripfeedSupported) {
+        throw new BadRequestException("Ce service ne supporte pas la livraison échelonnée");
+      }
+      const limits = extractDripfeedLimits(priced.providerService.fieldsSchema);
+      if (limits.maxRuns != null && dto.dripfeedRuns > limits.maxRuns) {
+        throw new BadRequestException(`Nombre de lots trop élevé (max ${limits.maxRuns})`);
+      }
+      if (limits.maxIntervalMinutes != null && dto.dripfeedIntervalMinutes > limits.maxIntervalMinutes) {
+        throw new BadRequestException(`Intervalle trop élevé (max ${limits.maxIntervalMinutes} min)`);
+      }
+    }
+
     let couponId: string | null = null;
     let finalPriceXof = priced.priceClientXof;
     let discountXof = new Decimal(0);
@@ -181,6 +199,8 @@ export class OrdersService {
         couponId,
         discountXof: discountXof.toString(),
         termsAcceptedAt: new Date(),
+        dripfeedRuns: dto.dripfeedRuns,
+        dripfeedIntervalMinutes: dto.dripfeedIntervalMinutes,
       },
     });
 
@@ -464,6 +484,9 @@ export class OrdersService {
           service: order.catalogService.providerService.providerServiceId,
           link: order.targetLink,
           quantity: order.quantity,
+          ...(order.dripfeedRuns != null && order.dripfeedIntervalMinutes != null
+            ? { runs: order.dripfeedRuns, interval: order.dripfeedIntervalMinutes }
+            : {}),
         },
         order.id,
       );

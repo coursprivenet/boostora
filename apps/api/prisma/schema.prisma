@@ -192,6 +192,12 @@ model Order {
   /// checkbox — real evidence for a dispute, not just a client-side UI gate.
   termsAcceptedAt DateTime?
 
+  /// Drip-feed: split delivery into batches over time instead of all at once, to look
+  /// organic to the platform's own abuse detection. Only set when the provider service
+  /// supports it (ProviderService.dripfeedSupported) — both null means normal delivery.
+  dripfeedRuns             Int?
+  dripfeedIntervalMinutes  Int?
+
   paymentStatus PaymentStatus @default(PENDING)
   orderStatus   OrderStatus   @default(PENDING_PAYMENT)
 
