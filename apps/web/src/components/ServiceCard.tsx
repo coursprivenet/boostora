@@ -3,10 +3,10 @@ import { CatalogItem } from "@/lib/types";
 import { formatXof } from "@/lib/format";
 import { Tooltip } from "./Tooltip";
 
-const UNIT_LABEL: Record<string, string> = {
-  per_1000: "/ 1000",
-  per_order: "/ commande",
-};
+function unitLabel(item: CatalogItem) {
+  if (item.unit === "per_order") return "/ commande";
+  return `/ ${item.referenceQuantity.toLocaleString("fr-FR")}`;
+}
 
 export function ServiceCard({ item }: { item: CatalogItem }) {
   return (
@@ -32,8 +32,8 @@ export function ServiceCard({ item }: { item: CatalogItem }) {
       <div className="mt-4 flex items-center justify-between">
         <span className="flex items-center gap-1 text-lg font-semibold text-ink-900">
           {formatXof(item.priceClientXof)}
-          <span className="text-xs font-normal text-ink-400">{UNIT_LABEL[item.unit] ?? ""}</span>
-          <Tooltip text="Prix de référence pour 1000 unités. Le montant réel se calcule automatiquement selon la quantité que tu choisis au moment de commander." />
+          <span className="text-xs font-normal text-ink-400">{unitLabel(item)}</span>
+          <Tooltip text={`Prix de référence pour ${item.referenceQuantity.toLocaleString("fr-FR")} unités (la quantité minimum utile pour ce service). Le montant réel se calcule automatiquement selon la quantité que tu choisis au moment de commander.`} />
         </span>
         <Link
           href={`/checkout/${item.id}`}

@@ -37,6 +37,7 @@ export interface CatalogItem {
   minQuantity: number;
   maxQuantity: number;
   priceClientXof: string;
+  referenceQuantity: number;
   dripfeedSupported: boolean;
   dripfeedMaxRuns: number | null;
   dripfeedMaxIntervalMinutes: number | null;

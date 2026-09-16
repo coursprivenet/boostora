@@ -174,10 +174,18 @@ export class CatalogService {
     ]);
 
     return services.map((s) => {
+      const minQuantity = s.minQuantityOverride ?? s.providerService.minQuantity;
+      // A flat "/1000" reference price is meaningless for comparing cards at a glance —
+      // show the price for a realistic small order instead: 200 units, or the service's
+      // own minimum when that's already above 200.
+      const referenceQuantity = s.providerService.unit === "per_1000" ? Math.max(200, minQuantity) : 1;
+      const quantityFactor =
+        s.providerService.unit === "per_1000" ? new Decimal(referenceQuantity).div(1000) : new Decimal(1);
+
       const price = computePrice({
         pricingRuleType: s.pricingRuleType,
         pricingValue: s.pricingValue.toString(),
-        costUsd: s.providerService.rateUsd.toString(),
+        costUsd: new Decimal(s.providerService.rateUsd.toString()).mul(quantityFactor),
         fxRateXofPerUsd: fxRate,
         roundingStep: s.roundingStep?.toString(),
         minPriceXof: s.minPriceXof?.toString(),
@@ -193,9 +201,10 @@ export class CatalogService {
         category: { slug: s.category.slug, name: s.category.name },
         platform: s.providerService.platform,
         unit: s.providerService.unit,
-        minQuantity: s.minQuantityOverride ?? s.providerService.minQuantity,
+        minQuantity,
         maxQuantity: s.maxQuantityOverride ?? s.providerService.maxQuantity,
         priceClientXof: price.priceClientXof.toDecimalPlaces(0).toString(),
+        referenceQuantity,
         dripfeedSupported: s.providerService.dripfeedSupported,
         dripfeedMaxRuns: dripfeed.maxRuns,
         dripfeedMaxIntervalMinutes: dripfeed.maxIntervalMinutes,
@@ -217,10 +226,16 @@ export class CatalogService {
       throw new NotFoundException("Service indisponible");
     }
 
+    const minQuantity = service.minQuantityOverride ?? service.providerService.minQuantity;
+    const referenceQuantity =
+      service.providerService.unit === "per_1000" ? Math.max(200, minQuantity) : 1;
+    const quantityFactor =
+      service.providerService.unit === "per_1000" ? new Decimal(referenceQuantity).div(1000) : new Decimal(1);
+
     const price = computePrice({
       pricingRuleType: service.pricingRuleType,
       pricingValue: service.pricingValue.toString(),
-      costUsd: service.providerService.rateUsd.toString(),
+      costUsd: new Decimal(service.providerService.rateUsd.toString()).mul(quantityFactor),
       fxRateXofPerUsd: fxRate,
       roundingStep: service.roundingStep?.toString(),
       minPriceXof: service.minPriceXof?.toString(),
@@ -236,9 +251,10 @@ export class CatalogService {
       category: { slug: service.category.slug, name: service.category.name },
       platform: service.providerService.platform,
       unit: service.providerService.unit,
-      minQuantity: service.minQuantityOverride ?? service.providerService.minQuantity,
+      minQuantity,
       maxQuantity: service.maxQuantityOverride ?? service.providerService.maxQuantity,
       priceClientXof: price.priceClientXof.toDecimalPlaces(0).toString(),
+      referenceQuantity,
       dripfeedSupported: service.providerService.dripfeedSupported,
       dripfeedMaxRuns: dripfeed.maxRuns,
       dripfeedMaxIntervalMinutes: dripfeed.maxIntervalMinutes,
