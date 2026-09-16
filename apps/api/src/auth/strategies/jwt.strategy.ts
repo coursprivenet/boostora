@@ -40,7 +40,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (!user) {
       throw new UnauthorizedException("Compte introuvable");
     }
-    if (user.passwordChangedAt && payload.iat * 1000 < user.passwordChangedAt.getTime()) {
+    // JWT iat has 1-second resolution; passwordChangedAt has millisecond resolution. Comparing
+    // them directly means a token minted in the very same second as the password change (e.g.
+    // the fresh one changePassword/logoutAllSessions hands back) can have an iat that floors to
+    // *before* passwordChangedAt's sub-second value and gets wrongly rejected. Floor
+    // passwordChangedAt to the second too — a 1-second-coarser cutoff, but race-free.
+    const passwordChangedAtSec = user.passwordChangedAt
+      ? Math.floor(user.passwordChangedAt.getTime() / 1000)
+      : null;
+    if (passwordChangedAtSec !== null && payload.iat < passwordChangedAtSec) {
       throw new UnauthorizedException("Session expirée suite au changement de mot de passe");
     }
     return { id: user.id, email: user.email, phone: user.phone, role: user.role, createdAt: user.createdAt };

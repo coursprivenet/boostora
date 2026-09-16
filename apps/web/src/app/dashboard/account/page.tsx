@@ -25,6 +25,11 @@ export default function AccountPage() {
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordBusy, setPasswordBusy] = useState(false);
 
+  const [logoutAllConfirming, setLogoutAllConfirming] = useState(false);
+  const [logoutAllSaved, setLogoutAllSaved] = useState(false);
+  const [logoutAllError, setLogoutAllError] = useState<string | null>(null);
+  const [logoutAllBusy, setLogoutAllBusy] = useState(false);
+
   useEffect(() => {
     if (!token) return;
     api.get<AuthMeResponse>("/auth/me", token).then((data) => {
@@ -77,6 +82,22 @@ export default function AccountPage() {
       setPasswordError(err instanceof ApiError ? err.message : "Erreur, réessaie");
     } finally {
       setPasswordBusy(false);
+    }
+  }
+
+  async function handleLogoutAll() {
+    if (!token) return;
+    setLogoutAllError(null);
+    setLogoutAllBusy(true);
+    try {
+      const auth = await api.post<AuthResponse>("/auth/me/logout-all-sessions", undefined, token);
+      updateToken(auth.accessToken);
+      setLogoutAllSaved(true);
+      setLogoutAllConfirming(false);
+    } catch (err) {
+      setLogoutAllError(err instanceof ApiError ? err.message : "Erreur, réessaie");
+    } finally {
+      setLogoutAllBusy(false);
     }
   }
 
@@ -151,6 +172,44 @@ export default function AccountPage() {
             Changer le mot de passe
           </Button>
         </form>
+      </div>
+
+      <div className="mt-6 rounded-xl2 border border-ink-100 bg-white p-6 shadow-soft">
+        <h2 className="mb-1 text-sm font-semibold text-ink-900">Sessions</h2>
+        <p className="mb-4 text-sm text-ink-500">
+          Déconnecte toutes les autres sessions actives (autres navigateurs, autres appareils)
+          sans changer ton mot de passe.
+        </p>
+        {logoutAllError && <p className="mb-2 text-sm text-rose-600">{logoutAllError}</p>}
+        {logoutAllSaved && (
+          <p className="mb-2 text-sm text-emerald-600">Toutes les autres sessions ont été déconnectées.</p>
+        )}
+        {logoutAllConfirming ? (
+          <div className="flex gap-3">
+            <Button
+              variant="secondary"
+              loading={logoutAllBusy}
+              onClick={handleLogoutAll}
+              className="flex-1 !text-rose-600"
+            >
+              Confirmer la déconnexion
+            </Button>
+            <Button variant="ghost" onClick={() => setLogoutAllConfirming(false)}>
+              Annuler
+            </Button>
+          </div>
+        ) : (
+          <Button
+            variant="secondary"
+            className="w-full !text-rose-600"
+            onClick={() => {
+              setLogoutAllConfirming(true);
+              setLogoutAllSaved(false);
+            }}
+          >
+            Déconnecter les autres sessions
+          </Button>
+        )}
       </div>
     </main>
   );

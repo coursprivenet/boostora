@@ -135,6 +135,22 @@ export class AuthService {
     return this.buildAuthResponse(user.id, user.email, user.role);
   }
 
+  /**
+   * Kills every other session without touching the password — for "I think someone else
+   * is on my account" without the friction of also picking a new password. Reuses the
+   * exact same passwordChangedAt cutoff JwtStrategy already checks.
+   */
+  async logoutAllSessions(userId: string) {
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordChangedAt: new Date() },
+    });
+    await this.auditLog.record(userId, "user.logout_all_sessions", userId);
+
+    // Same reasoning as changePassword: this action invalidates the caller's own token too.
+    return this.buildAuthResponse(user.id, user.email, user.role);
+  }
+
   private buildAuthResponse(id: string, email: string, role: string) {
     const accessToken = this.jwt.sign({ sub: id, role });
     return {

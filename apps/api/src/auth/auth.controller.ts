@@ -67,4 +67,11 @@ export class AuthController {
   changePassword(@Body() dto: ChangePasswordDto, @CurrentUser() user: AuthenticatedUser) {
     return this.auth.changePassword(user.id, dto);
   }
+
+  @Throttle(AUTH_THROTTLE)
+  @HttpCode(HttpStatus.OK)
+  @Post("me/logout-all-sessions")
+  logoutAllSessions(@CurrentUser() user: AuthenticatedUser) {
+    return this.auth.logoutAllSessions(user.id);
+  }
 }
