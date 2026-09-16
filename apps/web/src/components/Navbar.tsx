@@ -27,9 +27,10 @@ export function Navbar() {
   }, [token]);
 
   return (
-    <header className="print:hidden border-b border-ink-100 bg-white/80 backdrop-blur">
+    <header className="print:hidden border-b-2 border-ink-900 bg-white/90 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <Link href="/" className="text-lg font-semibold tracking-tight text-ink-900">
+        <Link href="/" className="flex items-center gap-2 text-lg font-bold tracking-tight text-ink-900">
+          <span className="h-3 w-3 rounded-sm bg-brand-500" />
           Boostora
         </Link>
         <nav className="flex items-center gap-6 text-sm font-medium text-ink-600">

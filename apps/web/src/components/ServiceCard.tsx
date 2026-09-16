@@ -10,12 +10,12 @@ function unitLabel(item: CatalogItem) {
 
 export function ServiceCard({ item }: { item: CatalogItem }) {
   return (
-    <div className="flex flex-col justify-between rounded-xl2 border border-ink-100 bg-white p-5 shadow-soft transition-shadow hover:shadow-card">
+    <div className="flex flex-col justify-between rounded-xl2 border-2 border-ink-900 bg-white p-5 transition-transform hover:-translate-y-0.5">
       <div>
-        <p className="text-xs font-medium uppercase tracking-wide text-brand-500">
+        <span className="inline-flex items-center rounded-full border-2 border-ink-900 bg-brand-500 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ink-900">
           {item.platform}
-        </p>
-        <h3 className="mt-1 text-base font-semibold text-ink-900">{item.name}</h3>
+        </span>
+        <h3 className="mt-2 text-base font-semibold text-ink-900">{item.name}</h3>
         {item.description && (
           <p className="mt-1.5 line-clamp-2 text-sm text-ink-500">{item.description}</p>
         )}
@@ -37,7 +37,7 @@ export function ServiceCard({ item }: { item: CatalogItem }) {
         </span>
         <Link
           href={`/checkout/${item.id}`}
-          className="rounded-lg bg-ink-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-ink-800"
+          className="rounded-lg border-2 border-ink-900 bg-ink-900 px-3.5 py-2 text-sm font-semibold text-brand-500 transition-colors hover:bg-brand-500 hover:text-ink-900"
         >
           Commander
         </Link>
