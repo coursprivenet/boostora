@@ -18,7 +18,12 @@ const SLIDER_STEPS = 1000;
  * a plain linear slider is useless once max hits the hundreds of thousands. */
 function sliderPosToQuantity(pos: number, min: number, max: number) {
   const t = pos / SLIDER_STEPS;
-  return Math.round(min + (max - min) * t ** 3);
+  const raw = min + (max - min) * t ** 3;
+  if (raw <= min) return min;
+  if (raw >= max) return max;
+  // Steps of 100 in between — exact min/max stay reachable even when they aren't
+  // themselves multiples of 100.
+  return Math.round(raw / 100) * 100;
 }
 function quantityToSliderPos(quantity: number, min: number, max: number) {
   if (max <= min) return 0;
@@ -38,6 +43,15 @@ function recommendedDripfeedDays(quantity: number) {
   if (quantity <= 500) return 1;
   if (quantity <= 2000) return 2;
   if (quantity <= 5000) return 3;
+  if (quantity <= 20000) return 5;
+  if (quantity <= 50000) return 7;
+  if (quantity <= 100000) return 10;
+  return 14;
+}
+/** Mirrors the server's minDripfeedDaysFor (orders.service.ts) — above 10k units,
+ * spreading the delivery isn't optional. Kept in sync manually with the backend. */
+function mandatoryMinDripfeedDays(quantity: number) {
+  if (quantity <= 10000) return 0;
   if (quantity <= 20000) return 5;
   if (quantity <= 50000) return 7;
   if (quantity <= 100000) return 10;
@@ -141,6 +155,21 @@ export default function CheckoutPage() {
     }, 250);
     return () => clearTimeout(timer);
   }, [item, quantity]);
+
+  // Above 10k units, spreading delivery stops being optional — the server rejects the
+  // order otherwise (orders.service.ts, minDripfeedDaysFor). Force the toggle on and
+  // clamp the day count up to the mandatory floor whenever the quantity crosses it.
+  const mandatoryDays = item ? mandatoryMinDripfeedDays(quantity) : 0;
+  useEffect(() => {
+    if (mandatoryDays === 0 || !item?.dripfeedSupported) return;
+    setDripfeedEnabled(true);
+    setDripfeedDays((d) => {
+      const next = Math.max(d, mandatoryDays);
+      setDripfeedRuns((r) => Math.max(r, recommendedDripfeedRuns(next, item.dripfeedMaxRuns)));
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mandatoryDays, item?.dripfeedSupported]);
 
   function computedIntervalMinutes(): number | null {
     if (!item || !dripfeedEnabled) return null;
@@ -322,12 +351,23 @@ export default function CheckoutPage() {
               </div>
             </div>
 
+            {mandatoryDays > 0 && !item.dripfeedSupported && (
+              <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                Cette quantité dépasse 10 000 unités — ce service ne supporte pas la livraison
+                échelonnée, obligatoire au-delà de ce seuil. Réduis la quantité ou choisis une autre
+                offre.
+              </p>
+            )}
+
             {item.dripfeedSupported && (
               <div className="rounded-lg border border-ink-100 p-3">
-                <label className="flex items-center gap-2 text-sm font-medium text-ink-700">
+                <label
+                  className={`flex items-center gap-2 text-sm font-medium text-ink-700 ${mandatoryDays > 0 ? "opacity-70" : ""}`}
+                >
                   <input
                     type="checkbox"
                     checked={dripfeedEnabled}
+                    disabled={mandatoryDays > 0}
                     onChange={(e) => {
                       const enabled = e.target.checked;
                       setDripfeedEnabled(enabled);
@@ -342,8 +382,9 @@ export default function CheckoutPage() {
                   <Tooltip text="Répartit la livraison en plusieurs lots sur plusieurs jours au lieu de tout livrer d'un coup — réduit le risque que la plateforme détecte un pic anormal d'activité et supprime les followers/likes/vues ou restreigne le compte." />
                 </label>
                 <p className="mt-1 text-xs text-ink-400">
-                  Plus la livraison est étalée dans le temps, plus faible est la probabilité que les
-                  followers/likes/vues chutent après coup.
+                  {mandatoryDays > 0
+                    ? `Obligatoire au-delà de 10 000 unités — minimum ${mandatoryDays} jours pour cette quantité.`
+                    : "Plus la livraison est étalée dans le temps, plus faible est la probabilité que les followers/likes/vues chutent après coup."}
                 </p>
                 {dripfeedEnabled && (
                   <>
@@ -354,7 +395,7 @@ export default function CheckoutPage() {
                       </div>
                       <input
                         type="range"
-                        min={1}
+                        min={mandatoryDays > 0 ? mandatoryDays : 1}
                         max={30}
                         value={dripfeedDays}
                         onChange={(e) => setDripfeedDays(Number(e.target.value))}
@@ -454,7 +495,12 @@ export default function CheckoutPage() {
             </label>
 
             {error && <p className="text-sm text-rose-600">{error}</p>}
-            <Button type="submit" loading={busy} disabled={!acceptedTerms} className="w-full">
+            <Button
+              type="submit"
+              loading={busy}
+              disabled={!acceptedTerms || (mandatoryDays > 0 && !item.dripfeedSupported)}
+              className="w-full"
+            >
               Continuer vers le paiement
             </Button>
           </form>

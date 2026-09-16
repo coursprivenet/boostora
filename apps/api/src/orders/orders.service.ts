@@ -25,6 +25,17 @@ import { RefundOrderDto } from "./dto/refund-order.dto";
 
 const RETRYABLE_PANELFOLLOWS_HTTP_STATUSES = [429, 502, 503];
 
+/** Mirrors the frontend's recommendedDripfeedDays heuristic (checkout page) — kept in
+ * sync manually since this is the authoritative, server-enforced minimum, not just a
+ * UI suggestion. A big order delivered all at once is the most visible kind of spike. */
+function minDripfeedDaysFor(quantity: number): number {
+  if (quantity <= 10000) return 0;
+  if (quantity <= 20000) return 5;
+  if (quantity <= 50000) return 7;
+  if (quantity <= 100000) return 10;
+  return 14;
+}
+
 @Injectable()
 export class OrdersService {
   private readonly logger = new Logger(OrdersService.name);
@@ -167,6 +178,23 @@ export class OrdersService {
       }
       if (limits.maxIntervalMinutes != null && dto.dripfeedIntervalMinutes > limits.maxIntervalMinutes) {
         throw new BadRequestException(`Intervalle trop élevé (max ${limits.maxIntervalMinutes} min)`);
+      }
+    }
+
+    const minDays = minDripfeedDaysFor(dto.quantity);
+    if (minDays > 0) {
+      if (!priced.providerService.dripfeedSupported) {
+        throw new BadRequestException(
+          `Les commandes de plus de 10 000 unités doivent être étalées dans le temps — ce service ne supporte pas la livraison échelonnée, réduis la quantité ou choisis un autre service.`,
+        );
+      }
+      const totalSpreadDays = dripfeedRequested
+        ? (dto.dripfeedRuns! * dto.dripfeedIntervalMinutes!) / (24 * 60)
+        : 0;
+      if (totalSpreadDays < minDays) {
+        throw new BadRequestException(
+          `Les commandes de plus de 10 000 unités doivent être étalées sur au moins ${minDays} jours — active la livraison échelonnée avec un délai suffisant.`,
+        );
       }
     }
 
