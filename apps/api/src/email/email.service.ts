@@ -31,6 +31,8 @@ export class EmailService {
       const result = await this.resend.emails.send({ from: this.from, to, subject, html });
       if (result.error) {
         this.logger.warn(`Resend rejected email to ${to}: ${result.error.message}`);
+      } else {
+        this.logger.log(`Resend accepted email to ${to}, id=${result.data?.id}`);
       }
     } catch (err) {
       this.logger.error(`Failed to send email to ${to}: ${(err as Error).message}`);
