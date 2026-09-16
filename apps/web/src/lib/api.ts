@@ -41,6 +41,23 @@ async function request<T>(
   return data as T;
 }
 
+/** Fetches a file with auth (plain <a href> can't carry an Authorization header) and triggers a browser download. */
+async function downloadFile(path: string, filename: string, token: string) {
+  const res = await fetch(`${API_URL}${path}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    throw new ApiError(res.status, "Téléchargement impossible");
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 export const api = {
   get: <T>(path: string, token?: string) => request<T>("GET", path, { token }),
   post: <T>(path: string, body?: unknown, token?: string) =>
@@ -48,4 +65,5 @@ export const api = {
   patch: <T>(path: string, body?: unknown, token?: string) =>
     request<T>("PATCH", path, { body, token }),
   delete: <T>(path: string, token?: string) => request<T>("DELETE", path, { token }),
+  downloadFile,
 };

@@ -74,6 +74,62 @@ export class OrdersService {
     });
   }
 
+  /** For accounting/reconciliation outside the app — same data as listAdmin(), flattened. */
+  async exportOrdersCsv(): Promise<string> {
+    const orders = await this.listAdmin();
+
+    const escape = (value: unknown): string => {
+      if (value === null || value === undefined) return "";
+      const str = String(value);
+      return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+    };
+
+    const header = [
+      "Date",
+      "Client",
+      "Service",
+      "Lien cible",
+      "Quantité",
+      "Prix XOF",
+      "Coût USD",
+      "Marge brute XOF",
+      "Marge nette XOF",
+      "Statut commande",
+      "Statut paiement",
+      "Référence paiement",
+      "ID transaction Yengapay",
+      "ID transaction opérateur",
+      "Payé le",
+      "Remboursé le",
+      "Montant remboursé XOF",
+      "Motif remboursement",
+    ];
+
+    const rows = orders.map((o) => [
+      o.createdAt.toISOString(),
+      o.user.email,
+      o.catalogService.name,
+      o.targetLink,
+      o.quantity,
+      o.priceClientXof.toString(),
+      o.costProviderUsd.toString(),
+      o.marginXof.toString(),
+      o.netMarginXof ?? "",
+      o.orderStatus,
+      o.paymentStatus,
+      o.payment?.reference ?? "",
+      o.payment?.transactionId ?? "",
+      o.payment?.operatorTransactionId ?? "",
+      o.paidAt?.toISOString() ?? "",
+      o.payment?.refundedAt?.toISOString() ?? "",
+      o.payment?.refundAmountXof?.toString() ?? "",
+      o.payment?.refundReason ?? "",
+    ]);
+
+    const lines = [header, ...rows].map((row) => row.map(escape).join(","));
+    return lines.join("\r\n");
+  }
+
   async getOneMine(userId: string, orderId: string) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },

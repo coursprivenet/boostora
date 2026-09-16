@@ -16,6 +16,7 @@ export default function AdminOrdersPage() {
   const [refundReason, setRefundReason] = useState("");
   const [refundError, setRefundError] = useState<string | null>(null);
   const [refundBusy, setRefundBusy] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   function load() {
     if (!token) return;
@@ -58,9 +59,24 @@ export default function AdminOrdersPage() {
     }
   }
 
+  async function exportCsv() {
+    if (!token) return;
+    setExporting(true);
+    try {
+      await api.downloadFile("/orders/admin/export.csv", `commandes-${Date.now()}.csv`, token);
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-semibold text-ink-900">Commandes</h1>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-semibold text-ink-900">Commandes</h1>
+        <Button variant="secondary" loading={exporting} onClick={exportCsv}>
+          Exporter CSV
+        </Button>
+      </div>
 
       {!orders && <p className="text-ink-400">Chargement…</p>}
 

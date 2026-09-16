@@ -1,5 +1,6 @@
-import { Body, Controller, Get, Param, Post } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Res } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
+import { Response } from "express";
 import { UserRole } from "@prisma/client";
 import { Roles } from "../auth/decorators/roles.decorator";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
@@ -23,6 +24,15 @@ export class OrdersController {
   @Get("admin")
   listAdmin() {
     return this.orders.listAdmin();
+  }
+
+  @Roles(UserRole.ADMIN)
+  @Get("admin/export.csv")
+  async exportCsv(@Res() res: Response) {
+    const csv = await this.orders.exportOrdersCsv();
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="commandes-${Date.now()}.csv"`);
+    res.send(csv);
   }
 
   /** Manual recovery for orders stuck in RETRY_SUBMIT/SUBMIT_FAILED — no-ops if already submitted. */
