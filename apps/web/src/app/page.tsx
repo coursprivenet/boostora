@@ -29,7 +29,7 @@ const FEATURES: Feature[] = [
     body: "Mix mondial ou pays spécifique selon l'offre choisie — utile si ton audience doit paraître localisée plutôt que générique.",
   },
   {
-    icon: "progress",
+    img: "/illustrations/features/tracking.png",
     title: "Suivi en temps réel",
     body: "Chaque commande a sa barre de progression — tu sais exactement où ça en est, sans avoir à demander.",
   },
@@ -66,19 +66,23 @@ export default function HomePage() {
       </section>
 
       <section className="border-b border-ink-100 bg-white px-6 py-10">
-        <div className="mx-auto max-w-6xl text-center">
-          <p className="text-sm font-semibold uppercase tracking-wide text-ink-400">
-            Paiement Mobile Money
-          </p>
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
-            {OPERATORS.map((op) => (
-              <span
-                key={op}
-                className="rounded-full border-2 border-ink-900 px-4 py-1.5 text-sm font-semibold text-ink-900"
-              >
-                {op}
-              </span>
-            ))}
+        <div className="mx-auto flex max-w-6xl flex-col items-center gap-6 sm:flex-row sm:justify-center">
+          {/* eslint-disable-next-line @next/next/no-img-element -- static illustration asset */}
+          <img src="/illustrations/features/wallet.png" alt="" className="h-24 w-auto shrink-0 sm:h-28" />
+          <div className="text-center sm:text-left">
+            <p className="text-sm font-semibold uppercase tracking-wide text-ink-400">
+              Paiement Mobile Money
+            </p>
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-3 sm:justify-start">
+              {OPERATORS.map((op) => (
+                <span
+                  key={op}
+                  className="rounded-full border-2 border-ink-900 px-4 py-1.5 text-sm font-semibold text-ink-900"
+                >
+                  {op}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -88,21 +92,21 @@ export default function HomePage() {
           <h2 className="text-center text-2xl font-semibold text-ink-900">
             Pourquoi commander sur Boostora
           </h2>
-          <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-10 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 sm:grid sm:grid-cols-2 sm:gap-6 sm:overflow-visible lg:grid-cols-3">
             {FEATURES.map((f) => (
               <div
                 key={f.title}
-                className="flex flex-col items-center rounded-xl2 border-2 border-ink-900 bg-white p-6 text-center"
+                className="flex w-[78%] shrink-0 snap-start flex-col items-center rounded-xl2 border-2 border-ink-900 bg-white p-4 text-center sm:w-auto sm:p-6"
               >
                 {"img" in f ? (
                   // eslint-disable-next-line @next/next/no-img-element -- static illustration asset
-                  <img src={f.img} alt="" className="h-32 w-auto object-contain" />
+                  <img src={f.img} alt="" className="h-20 w-auto object-contain sm:h-32" />
                 ) : (
-                  <div className="flex h-32 w-32 items-center justify-center rounded-full border-2 border-ink-900 bg-brand-500">
-                    <FeatureIcon name={f.icon} className="h-12 w-12 text-ink-900" />
+                  <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-ink-900 bg-brand-500 sm:h-32 sm:w-32">
+                    <FeatureIcon name={f.icon} className="h-8 w-8 text-ink-900 sm:h-12 sm:w-12" />
                   </div>
                 )}
-                <h3 className="mt-4 text-sm font-semibold text-ink-900">{f.title}</h3>
+                <h3 className="mt-3 text-sm font-semibold text-ink-900 sm:mt-4">{f.title}</h3>
                 <p className="mt-1.5 text-xs leading-relaxed text-ink-500">{f.body}</p>
               </div>
             ))}

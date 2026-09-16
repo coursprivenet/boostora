@@ -29,15 +29,15 @@ export function ServiceCard({ item }: { item: CatalogItem }) {
           Min {item.minQuantity.toLocaleString("fr-FR")} · Max {item.maxQuantity.toLocaleString("fr-FR")}
         </p>
       </div>
-      <div className="mt-4 flex items-center justify-between">
-        <span className="flex items-center gap-1 text-lg font-semibold text-ink-900">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+        <span className="flex min-w-0 items-center gap-1 text-lg font-semibold text-ink-900">
           {formatXof(item.priceClientXof)}
           <span className="text-xs font-normal text-ink-400">{unitLabel(item)}</span>
           <Tooltip text={`Prix de référence pour ${item.referenceQuantity.toLocaleString("fr-FR")} unités (la quantité minimum utile pour ce service). Le montant réel se calcule automatiquement selon la quantité que tu choisis au moment de commander.`} />
         </span>
         <Link
           href={`/checkout/${item.id}`}
-          className="rounded-lg border-2 border-ink-900 bg-ink-900 px-3.5 py-2 text-sm font-semibold text-brand-500 transition-colors hover:bg-brand-500 hover:text-ink-900"
+          className="shrink-0 rounded-lg border-2 border-ink-900 bg-ink-900 px-3.5 py-2 text-sm font-semibold text-brand-500 transition-colors hover:bg-brand-500 hover:text-ink-900"
         >
           Commander
         </Link>

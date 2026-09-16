@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import { AuthProvider } from "@/lib/auth-context";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -18,8 +19,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="flex min-h-screen flex-col font-sans">
         <AuthProvider>
           <Navbar />
-          <div className="flex-1">{children}</div>
+          <div className="flex-1 pb-16 lg:pb-0">{children}</div>
           <Footer />
+          <MobileBottomNav />
         </AuthProvider>
       </body>
     </html>

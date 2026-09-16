@@ -33,7 +33,7 @@ export function Navbar() {
           <span className="h-3 w-3 rounded-sm bg-brand-500" />
           Boostora
         </Link>
-        <nav className="flex items-center gap-6 text-sm font-medium text-ink-600">
+        <nav className="hidden items-center gap-6 text-sm font-medium text-ink-600 lg:flex">
           <Link href="/" className="hover:text-ink-900">
             Accueil
           </Link>

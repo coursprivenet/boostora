@@ -164,10 +164,38 @@ export class CatalogService {
 
   /** Public view: our brand only, no provider id, no cost, no margin. */
   async listPublic() {
+    // `select` instead of `include: { providerService: true }` — the latter pulls every
+    // column (notably each provider's full markdown `description`, often 1-2KB) across
+    // ~1000 rows, which is what made this endpoint take 40-50s once the catalog grew
+    // past a couple dozen items. Only the fields actually read below are fetched.
     const [services, fxRate] = await Promise.all([
       this.prisma.catalogService.findMany({
         where: { isVisible: true, providerService: { isActiveUpstream: true } },
-        include: { providerService: true, category: true },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          riskWarning: true,
+          pricingRuleType: true,
+          pricingValue: true,
+          roundingStep: true,
+          minPriceXof: true,
+          maxPriceXof: true,
+          minQuantityOverride: true,
+          maxQuantityOverride: true,
+          displayOrder: true,
+          category: { select: { slug: true, name: true } },
+          providerService: {
+            select: {
+              rateUsd: true,
+              unit: true,
+              minQuantity: true,
+              maxQuantity: true,
+              platform: true,
+              dripfeedSupported: true,
+            },
+          },
+        },
         orderBy: { displayOrder: "asc" },
       }),
       this.exchangeRate.getCurrentRate(),
@@ -192,7 +220,6 @@ export class CatalogService {
         maxPriceXof: s.maxPriceXof?.toString(),
       });
 
-      const dripfeed = extractDripfeedLimits(s.providerService.fieldsSchema);
       return {
         id: s.id,
         name: s.name,
@@ -206,8 +233,11 @@ export class CatalogService {
         priceClientXof: price.priceClientXof.toDecimalPlaces(0).toString(),
         referenceQuantity,
         dripfeedSupported: s.providerService.dripfeedSupported,
-        dripfeedMaxRuns: dripfeed.maxRuns,
-        dripfeedMaxIntervalMinutes: dripfeed.maxIntervalMinutes,
+        // Exact limits aren't worth fetching fieldsSchema (a JSON column) for ~1000 rows
+        // just to show a grid card — the checkout page's single-item lookup (getPublicOne)
+        // fetches the real values for the one service actually being configured.
+        dripfeedMaxRuns: null as number | null,
+        dripfeedMaxIntervalMinutes: null as number | null,
       };
     });
   }

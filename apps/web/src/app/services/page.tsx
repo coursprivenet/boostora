@@ -7,12 +7,35 @@ import { ServiceCard } from "@/components/ServiceCard";
 import { Tooltip } from "@/components/Tooltip";
 
 const PAGE_SIZE = 20;
+const PLATFORM_PREFIXES = ["Instagram", "TikTok", "Facebook", "YouTube"];
+
+// Category names are stored as "<Plateforme> <Type>" in French (e.g. "Instagram Abonnés").
+// Stripping the known platform prefix gives the type on its own, which is what lets a
+// "Abonnés" filter match across all 4 platforms instead of listing 42 raw categories.
+function typeOf(categoryName: string): string {
+  for (const prefix of PLATFORM_PREFIXES) {
+    if (categoryName.startsWith(prefix + " ")) return categoryName.slice(prefix.length + 1);
+  }
+  return categoryName;
+}
+
+const COUNTRY_TOKENS = [
+  "Italie", "Espagne", "Brésil", "Turquie", "Inde", "Indonésie", "Allemagne", "Thaïlande",
+  "Irak", "Corée", "Égypte", "Vietnam", "Grèce", "Argentine", "Mexique", "États-Unis", "USA",
+  "Royaume-Uni", "UK", "Arabie Saoudite", "Nigeria", "Pakistan", "Canada", "Philippines",
+  "Iran", "Portugal", "France", "Israël", "Golfe", "Arabe", "Latino", "Turc", "Brésilien",
+  "Espagnol", "Italien", "Indien", "Indonésien",
+];
+function isCountryTargeted(name: string): boolean {
+  return COUNTRY_TOKENS.some((t) => name.includes(t));
+}
 
 export default function ServicesPage() {
   const [services, setServices] = useState<CatalogItem[] | null>(null);
   const [error, setError] = useState(false);
   const [platformFilter, setPlatformFilter] = useState<string | null>(null);
-  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [typeFilter, setTypeFilter] = useState<string | null>(null);
+  const [targetingFilter, setTargetingFilter] = useState<"all" | "worldwide" | "country">("all");
   const [refillOnly, setRefillOnly] = useState(false);
   const [sort, setSort] = useState<"default" | "price-asc" | "price-desc">("default");
   const [page, setPage] = useState(1);
@@ -31,29 +54,35 @@ export default function ServicesPage() {
     return Array.from(counts.entries()).sort((a, b) => a[0].localeCompare(b[0]));
   }, [services]);
 
-  // Categories narrow to whatever platform is currently selected — irrelevant
-  // categories from other platforms would just add noise to the sidebar.
-  const categories = useMemo(() => {
+  // Types narrow to whatever platform is selected, same reasoning as before —
+  // irrelevant types would just be noise in the dropdown.
+  const types = useMemo(() => {
     if (!services) return [];
     const scoped = platformFilter ? services.filter((s) => s.platform === platformFilter) : services;
     const counts = new Map<string, number>();
-    for (const s of scoped) counts.set(s.category.name, (counts.get(s.category.name) ?? 0) + 1);
+    for (const s of scoped) {
+      const t = typeOf(s.category.name);
+      counts.set(t, (counts.get(t) ?? 0) + 1);
+    }
     return Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
   }, [services, platformFilter]);
 
   useEffect(() => {
-    setCategoryFilter(null);
+    setTypeFilter(null);
   }, [platformFilter]);
 
   useEffect(() => {
     setPage(1);
-  }, [platformFilter, categoryFilter, refillOnly, sort]);
+  }, [platformFilter, typeFilter, targetingFilter, refillOnly, sort]);
 
   const filtered = useMemo(() => {
     if (!services) return [];
     let list = services;
     if (platformFilter) list = list.filter((s) => s.platform === platformFilter);
-    if (categoryFilter) list = list.filter((s) => s.category.name === categoryFilter);
+    if (typeFilter) list = list.filter((s) => typeOf(s.category.name) === typeFilter);
+    if (targetingFilter !== "all") {
+      list = list.filter((s) => isCountryTargeted(s.name) === (targetingFilter === "country"));
+    }
     if (refillOnly) list = list.filter((s) => !s.riskWarning);
     if (sort !== "default") {
       list = [...list].sort((a, b) => {
@@ -62,15 +91,18 @@ export default function ServicesPage() {
       });
     }
     return list;
-  }, [services, platformFilter, categoryFilter, refillOnly, sort]);
+  }, [services, platformFilter, typeFilter, targetingFilter, refillOnly, sort]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
+  const selectClass =
+    "mt-1.5 w-full rounded-lg border border-ink-200 px-2.5 py-2 text-sm text-ink-900 focus:outline-none focus:ring-2 focus:ring-brand-400";
+
   return (
     <main>
       <section className="border-b-2 border-ink-900 bg-[#FFFBF0] px-6 py-10">
-        <div className="mx-auto flex max-w-6xl flex-col items-center gap-6 sm:flex-row sm:justify-center">
+        <div className="mx-auto flex max-w-[1600px] flex-col items-center gap-6 sm:flex-row sm:justify-center">
           {/* eslint-disable-next-line @next/next/no-img-element -- static illustration asset */}
           <img
             src="/illustrations/hero/jump.svg"
@@ -87,7 +119,7 @@ export default function ServicesPage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-6 py-8">
+      <section className="mx-auto max-w-[1600px] px-6 py-8">
         {platforms.length > 0 && (
           <div className="mb-6 flex flex-wrap justify-center gap-2">
             <button
@@ -98,15 +130,15 @@ export default function ServicesPage() {
             >
               Tous ({services?.length ?? 0})
             </button>
-            {platforms.map(([p, count]) => (
+            {platforms.map(([pf, count]) => (
               <button
-                key={p}
-                onClick={() => setPlatformFilter(p)}
+                key={pf}
+                onClick={() => setPlatformFilter(pf)}
                 className={`rounded-full border-2 border-ink-900 px-4 py-1.5 text-sm font-semibold uppercase transition-colors ${
-                  platformFilter === p ? "bg-ink-900 text-brand-500" : "bg-white text-ink-900 hover:bg-brand-300/40"
+                  platformFilter === pf ? "bg-ink-900 text-brand-500" : "bg-white text-ink-900 hover:bg-brand-300/40"
                 }`}
               >
-                {p} ({count})
+                {pf} ({count})
               </button>
             ))}
           </div>
@@ -119,38 +151,51 @@ export default function ServicesPage() {
         )}
 
         {services !== null && services.length > 0 && (
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[220px_1fr]">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[240px_1fr]">
             <aside className="lg:sticky lg:top-4 lg:self-start">
               <div className="rounded-xl2 border-2 border-ink-900 bg-white p-4">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-ink-400">
-                    Catégorie
-                  </span>
-                  <Tooltip text="Chaque catégorie regroupe les variantes d'un même type de service (ex: plusieurs offres de Followers Instagram qui diffèrent par prix, vitesse ou garantie de refill)." />
+                  <span className="text-xs font-semibold uppercase tracking-wide text-ink-400">Type</span>
+                  <Tooltip text="Le type de service (Abonnés, J'aime, Vues, Commentaires, Lives...), croisé avec le réseau choisi en haut." />
                 </div>
-                <div className="mt-2 flex max-h-72 flex-col gap-1 overflow-y-auto lg:max-h-[420px]">
-                  <button
-                    onClick={() => setCategoryFilter(null)}
-                    className={`rounded-lg px-2 py-1.5 text-left text-sm ${
-                      categoryFilter === null ? "bg-ink-900 font-semibold text-brand-500" : "text-ink-700 hover:bg-ink-50"
-                    }`}
-                  >
-                    Toutes
-                  </button>
-                  {categories.map(([name, count]) => (
-                    <button
-                      key={name}
-                      onClick={() => setCategoryFilter(name)}
-                      className={`flex items-center justify-between rounded-lg px-2 py-1.5 text-left text-sm ${
-                        categoryFilter === name
-                          ? "bg-ink-900 font-semibold text-brand-500"
-                          : "text-ink-700 hover:bg-ink-50"
-                      }`}
-                    >
-                      <span className="truncate">{name}</span>
-                      <span className="ml-2 shrink-0 text-xs text-ink-400">{count}</span>
-                    </button>
+                <select
+                  value={typeFilter ?? ""}
+                  onChange={(e) => setTypeFilter(e.target.value || null)}
+                  className={selectClass}
+                >
+                  <option value="">Tous les types</option>
+                  {types.map(([t, count]) => (
+                    <option key={t} value={t}>
+                      {t} ({count})
+                    </option>
                   ))}
+                </select>
+
+                <div className="mt-4 flex items-center gap-1.5">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-ink-400">Ciblage</span>
+                  <Tooltip text="Certaines offres livrent depuis un mix mondial de comptes, d'autres ciblent un pays précis (souvent plus cher, utile si ton audience doit sembler locale)." />
+                </div>
+                <select
+                  value={targetingFilter}
+                  onChange={(e) => setTargetingFilter(e.target.value as typeof targetingFilter)}
+                  className={selectClass}
+                >
+                  <option value="all">Tous</option>
+                  <option value="worldwide">Mondial</option>
+                  <option value="country">Pays ciblé</option>
+                </select>
+
+                <div className="mt-4">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-ink-400">Trier par prix</span>
+                  <select
+                    value={sort}
+                    onChange={(e) => setSort(e.target.value as typeof sort)}
+                    className={selectClass}
+                  >
+                    <option value="default">Par défaut</option>
+                    <option value="price-asc">Prix croissant</option>
+                    <option value="price-desc">Prix décroissant</option>
+                  </select>
                 </div>
 
                 <div className="mt-4 border-t border-ink-100 pt-4">
@@ -167,21 +212,6 @@ export default function ServicesPage() {
                     </span>
                   </label>
                 </div>
-
-                <div className="mt-4 border-t border-ink-100 pt-4">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-semibold uppercase tracking-wide text-ink-400">Trier par prix</span>
-                  </div>
-                  <select
-                    value={sort}
-                    onChange={(e) => setSort(e.target.value as typeof sort)}
-                    className="mt-2 w-full rounded-lg border border-ink-200 px-2 py-1.5 text-sm text-ink-900 focus:outline-none focus:ring-2 focus:ring-brand-400"
-                  >
-                    <option value="default">Par défaut</option>
-                    <option value="price-asc">Prix croissant</option>
-                    <option value="price-desc">Prix décroissant</option>
-                  </select>
-                </div>
               </div>
             </aside>
 
@@ -195,7 +225,7 @@ export default function ServicesPage() {
                 <p className="py-10 text-center text-ink-400">Aucun service pour ces filtres.</p>
               )}
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                 {pageItems.map((item) => (
                   <ServiceCard key={item.id} item={item} />
                 ))}
