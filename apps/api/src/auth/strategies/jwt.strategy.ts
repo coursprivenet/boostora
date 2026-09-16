@@ -13,7 +13,9 @@ export interface JwtPayload {
 export interface AuthenticatedUser {
   id: string;
   email: string;
+  phone: string | null;
   role: UserRole;
+  createdAt: Date;
 }
 
 @Injectable()
@@ -36,6 +38,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (!user) {
       throw new UnauthorizedException("Compte introuvable");
     }
-    return { id: user.id, email: user.email, role: user.role };
+    return { id: user.id, email: user.email, phone: user.phone, role: user.role, createdAt: user.createdAt };
   }
 }

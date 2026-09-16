@@ -5,10 +5,13 @@ import { randomBytes, createHash } from "crypto";
 import { PrismaService } from "../prisma/prisma.service";
 import { EmailService } from "../email/email.service";
 import { renderNotificationEmail } from "../email/email.templates";
+import { AuditLogService } from "../audit-log/audit-log.service";
 import { RegisterDto } from "./dto/register.dto";
 import { LoginDto } from "./dto/login.dto";
 import { ForgotPasswordDto } from "./dto/forgot-password.dto";
 import { ResetPasswordDto } from "./dto/reset-password.dto";
+import { UpdateProfileDto } from "./dto/update-profile.dto";
+import { ChangePasswordDto } from "./dto/change-password.dto";
 
 const BCRYPT_ROUNDS = 12;
 const RESET_TOKEN_TTL_MS = 30 * 60 * 1000;
@@ -19,6 +22,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly email: EmailService,
+    private readonly auditLog: AuditLogService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -98,6 +102,27 @@ export class AuthService {
         data: { usedAt: new Date() },
       }),
     ]);
+  }
+
+  async updateProfile(userId: string, dto: UpdateProfileDto) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { phone: dto.phone },
+      select: { id: true, email: true, phone: true, role: true, createdAt: true },
+    });
+  }
+
+  async changePassword(userId: string, dto: ChangePasswordDto) {
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+
+    const currentMatches = await bcrypt.compare(dto.currentPassword, user.passwordHash);
+    if (!currentMatches) {
+      throw new UnauthorizedException("Mot de passe actuel incorrect");
+    }
+
+    const passwordHash = await bcrypt.hash(dto.newPassword, BCRYPT_ROUNDS);
+    await this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+    await this.auditLog.record(userId, "user.password_change", userId);
   }
 
   private buildAuthResponse(id: string, email: string, role: string) {

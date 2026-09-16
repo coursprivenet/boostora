@@ -95,6 +95,11 @@ export function Navbar() {
             </>
           )}
           {!loading && user && (
+            <Link href="/dashboard/account" className="hover:text-ink-900">
+              Mon compte
+            </Link>
+          )}
+          {!loading && user && (
             <Button variant="secondary" className="!py-2" onClick={logout}>
               Déconnexion
             </Button>
