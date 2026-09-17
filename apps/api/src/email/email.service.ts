@@ -10,7 +10,7 @@ export class EmailService {
 
   constructor(private readonly config: ConfigService) {
     const apiKey = this.config.get<string>("RESEND_API_KEY");
-    this.from = this.config.get<string>("EMAIL_FROM") ?? "Boostora <onboarding@resend.dev>";
+    this.from = this.config.get<string>("EMAIL_FROM") ?? "Wassago <onboarding@resend.dev>";
     // Optional by design: email is a secondary channel on top of in-app notifications
     // (NotificationsService already covers every trigger) — the app must keep working
     // for everything else before Resend is even set up.

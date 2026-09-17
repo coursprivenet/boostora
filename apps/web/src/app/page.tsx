@@ -90,7 +90,7 @@ export default function HomePage() {
       <section className="border-b border-ink-100 bg-ink-50 px-6 py-14">
         <div className="mx-auto max-w-6xl">
           <h2 className="text-center text-2xl font-semibold text-ink-900">
-            Pourquoi commander sur Boostora
+            Pourquoi commander sur Wassago
           </h2>
           <div className="mt-10 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 sm:grid sm:grid-cols-2 sm:gap-6 sm:overflow-visible lg:grid-cols-3">
             {FEATURES.map((f) => (

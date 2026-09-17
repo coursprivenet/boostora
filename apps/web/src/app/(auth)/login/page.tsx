@@ -33,7 +33,7 @@ export default function LoginPage() {
   return (
     <main className="mx-auto flex min-h-[80vh] max-w-md flex-col justify-center px-6">
       <h1 className="mb-1 text-2xl font-semibold text-ink-900">Connexion</h1>
-      <p className="mb-8 text-sm text-ink-500">Accède à ton espace client Boostora.</p>
+      <p className="mb-8 text-sm text-ink-500">Accède à ton espace client Wassago.</p>
 
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
         <Input

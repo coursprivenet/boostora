@@ -182,7 +182,7 @@ export default function OrderDetailPage() {
             <div>
               <p className="flex items-center gap-2 text-xl font-bold text-ink-900">
                 <span className="h-3 w-3 rounded-sm bg-brand-500 print:hidden" />
-                Boostora
+                Wassago
               </p>
               <p className="mt-1 text-xs text-ink-400">Reçu de paiement</p>
             </div>
@@ -238,7 +238,7 @@ export default function OrderDetailPage() {
           )}
 
           <p className="mt-8 border-t border-ink-100 pt-4 text-center text-xs text-ink-400">
-            Merci d&apos;avoir choisi Boostora.
+            Merci d&apos;avoir choisi Wassago.
           </p>
         </div>
       )}

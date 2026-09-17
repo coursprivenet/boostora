@@ -86,10 +86,10 @@ export class AuthService {
 
     const html = renderNotificationEmail(
       "Réinitialisation de mot de passe",
-      "Tu as demandé à réinitialiser ton mot de passe Boostora. Ce lien expire dans 30 minutes. Si tu n'es pas à l'origine de cette demande, ignore cet email.",
+      "Tu as demandé à réinitialiser ton mot de passe Wassago. Ce lien expire dans 30 minutes. Si tu n'es pas à l'origine de cette demande, ignore cet email.",
       `/reset-password?token=${rawToken}`,
     );
-    void this.email.send(user.email, "Réinitialisation de mot de passe — Boostora", html);
+    void this.email.send(user.email, "Réinitialisation de mot de passe — Wassago", html);
   }
 
   async resetPassword(dto: ResetPasswordDto) {
@@ -178,10 +178,10 @@ export class AuthService {
 
     const html = renderNotificationEmail(
       "Confirme ton adresse email",
-      "Bienvenue sur Boostora. Clique sur le lien ci-dessous pour confirmer que cette adresse t'appartient. Ce lien expire dans 24 heures.",
+      "Bienvenue sur Wassago. Clique sur le lien ci-dessous pour confirmer que cette adresse t'appartient. Ce lien expire dans 24 heures.",
       `/verify-email?token=${rawToken}`,
     );
-    await this.email.send(email, "Confirme ton email — Boostora", html);
+    await this.email.send(email, "Confirme ton email — Wassago", html);
   }
 
   async verifyEmail(dto: VerifyEmailDto) {

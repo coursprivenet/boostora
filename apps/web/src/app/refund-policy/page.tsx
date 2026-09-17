@@ -1,5 +1,5 @@
 export const metadata = {
-  title: "Politique de Remboursement — Boostora",
+  title: "Politique de Remboursement — Wassago",
 };
 
 export default function RefundPolicyPage() {
@@ -13,7 +13,7 @@ export default function RefundPolicyPage() {
           <h2 className="mb-2 text-base font-semibold text-ink-900">1. Principe général</h2>
           <p>
             Les remboursements ne sont pas automatiques. Chaque demande est examinée manuellement par
-            l&apos;équipe Boostora, au cas par cas, via le système de tickets accessible depuis le
+            l&apos;équipe Wassago, au cas par cas, via le système de tickets accessible depuis le
             tableau de bord du client.
           </p>
         </section>
@@ -26,7 +26,7 @@ export default function RefundPolicyPage() {
               le fournisseur technique n&apos;a pas livré la commande dans un délai raisonnable et ne
               répond pas aux relances ;
             </li>
-            <li>la commande a échoué du fait d&apos;une erreur technique côté Boostora ou du fournisseur ;</li>
+            <li>la commande a échoué du fait d&apos;une erreur technique côté Wassago ou du fournisseur ;</li>
             <li>
               un paiement a été débité sans qu&apos;une commande correspondante n&apos;ait été créée ou
               confirmée.
@@ -41,7 +41,7 @@ export default function RefundPolicyPage() {
             <li>
               la baisse ou la disparition des abonnés, vues ou interactions résulte d&apos;une action
               de modération de la plateforme sociale visée (Instagram, TikTok, Facebook, YouTube,
-              etc.) — Boostora n&apos;a aucun contrôle sur ces décisions ;
+              etc.) — Wassago n&apos;a aucun contrôle sur ces décisions ;
             </li>
             <li>
               le lien cible fourni était invalide, privé, ou a été modifié/supprimé par le client
@@ -58,7 +58,7 @@ export default function RefundPolicyPage() {
         <section>
           <h2 className="mb-2 text-base font-semibold text-ink-900">4. Refill au lieu du remboursement</h2>
           <p>
-            Lorsque le service commandé prend en charge le refill, Boostora privilégie la
+            Lorsque le service commandé prend en charge le refill, Wassago privilégie la
             reconstitution de la commande plutôt que le remboursement, dans la limite de la période de
             garantie propre à ce service.
           </p>
@@ -67,7 +67,7 @@ export default function RefundPolicyPage() {
         <section>
           <h2 className="mb-2 text-base font-semibold text-ink-900">5. Modalités</h2>
           <p>
-            Un remboursement accordé est effectué manuellement par l&apos;équipe Boostora vers le
+            Un remboursement accordé est effectué manuellement par l&apos;équipe Wassago vers le
             même moyen de paiement mobile money utilisé pour la commande. Le délai de traitement varie
             selon l&apos;opérateur (Orange, Moov, Coris, Sank, Telecel) et est communiqué au client via
             le ticket de support correspondant.

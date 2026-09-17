@@ -44,7 +44,7 @@ export function Navbar() {
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
         <Link href="/" className="flex items-center gap-2 text-lg font-bold tracking-tight text-ink-900">
           <span className="h-3 w-3 rounded-sm bg-brand-500" />
-          Boostora
+          Wassago
         </Link>
         <nav className="hidden items-center gap-6 text-sm font-medium text-ink-600 lg:flex">
           <Link href="/" className={linkClass("/")}>

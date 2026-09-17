@@ -4,7 +4,7 @@ export function Footer() {
   return (
     <footer className="print:hidden mt-auto border-t-2 border-ink-900 bg-ink-900 text-white">
       <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-3 px-6 py-6 text-sm text-ink-300 sm:flex-row">
-        <p>© {new Date().getFullYear()} Boostora</p>
+        <p>© {new Date().getFullYear()} Wassago</p>
         <nav className="flex gap-5">
           <Link href="/terms" className="hover:text-brand-500 hover:underline">
             Conditions d&apos;Utilisation
