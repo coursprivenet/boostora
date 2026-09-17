@@ -62,9 +62,9 @@ function mandatoryMinDripfeedDays(quantity: number) {
   if (quantity <= 100000) return 10;
   return 14;
 }
-function recommendedDripfeedRuns(days: number, maxRuns: number | null) {
+function recommendedDripfeedRuns(days: number, maxRuns: number) {
   const runs = Math.max(2, days * 2); // roughly one batch every 12h
-  return maxRuns ? Math.min(runs, maxRuns) : runs;
+  return Math.min(runs, maxRuns);
 }
 
 type Step =
@@ -244,23 +244,35 @@ export default function CheckoutPage() {
   // order otherwise (orders.service.ts, minDripfeedDaysFor). Force the toggle on and
   // clamp the day count up to the mandatory floor whenever the quantity crosses it.
   const mandatoryDays = item ? mandatoryMinDripfeedDays(quantity) : 0;
+  // The provider's minimum applies to every batch, not the combined total. Limit
+  // the picker accordingly so the UI cannot produce an invalid provider request.
+  const maxDripfeedRunsForQuantity = item
+    ? Math.min(item.dripfeedMaxRuns ?? 1000, Math.floor(quantity / item.minQuantity))
+    : 1;
+  const canUseDripfeed = maxDripfeedRunsForQuantity >= 2;
   useEffect(() => {
     if (mandatoryDays === 0 || !item?.dripfeedSupported) return;
     setDripfeedEnabled(true);
     setDripfeedDays((d) => {
       const next = Math.max(d, mandatoryDays);
-      setDripfeedRuns((r) => Math.max(r, recommendedDripfeedRuns(next, item.dripfeedMaxRuns)));
+      setDripfeedRuns((r) => Math.min(maxDripfeedRunsForQuantity, Math.max(r, recommendedDripfeedRuns(next, maxDripfeedRunsForQuantity))));
       return next;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mandatoryDays, item?.dripfeedSupported]);
+  }, [mandatoryDays, item?.dripfeedSupported, maxDripfeedRunsForQuantity]);
+
+  useEffect(() => {
+    if (dripfeedEnabled && dripfeedRuns > maxDripfeedRunsForQuantity && canUseDripfeed) {
+      setDripfeedRuns(maxDripfeedRunsForQuantity);
+    }
+  }, [canUseDripfeed, dripfeedEnabled, dripfeedRuns, maxDripfeedRunsForQuantity]);
 
   useEffect(() => {
     setDripfeedRunsInput(String(dripfeedRuns));
   }, [dripfeedRuns]);
 
   function normalizeDripfeedRuns() {
-    const max = item?.dripfeedMaxRuns ?? 1000;
+    const max = Math.max(2, maxDripfeedRunsForQuantity);
     const parsed = Number(dripfeedRunsInput);
     const valid = Number.isFinite(parsed) ? parsed : 2;
     setDripfeedRuns(Math.min(max, Math.max(2, Math.round(valid))));
@@ -268,13 +280,23 @@ export default function CheckoutPage() {
 
   function computedIntervalMinutes(): number | null {
     if (!item || !dripfeedEnabled) return null;
-    const raw = Math.round((dripfeedDays * 24 * 60) / dripfeedRuns);
-    return item.dripfeedMaxIntervalMinutes ? Math.min(raw, item.dripfeedMaxIntervalMinutes) : raw;
+    // The first batch starts immediately; there are runs - 1 gaps to fill.
+    return Math.round((dripfeedDays * 24 * 60) / Math.max(1, dripfeedRuns - 1));
   }
 
   async function submitOrder(e: FormEvent) {
     e.preventDefault();
     if (!token || !item) return;
+    if (dripfeedEnabled) {
+      if (!canUseDripfeed) {
+        setError(`Choisis au moins ${item.minQuantity * 2} unités pour répartir cette commande en 2 lots.`);
+        return;
+      }
+      if (quantity % dripfeedRuns !== 0) {
+        setError(`La quantité doit être divisible par ${dripfeedRuns} pour créer des lots égaux.`);
+        return;
+      }
+    }
     setBusy(true);
     setError(null);
     try {
@@ -478,14 +500,14 @@ export default function CheckoutPage() {
                       <input
                         type="checkbox"
                         checked={dripfeedEnabled}
-                        disabled={mandatoryDays > 0}
+                        disabled={mandatoryDays > 0 || !canUseDripfeed}
                         onChange={(e) => {
                           const enabled = e.target.checked;
                           setDripfeedEnabled(enabled);
                           if (enabled) {
                             const recDays = recommendedDripfeedDays(quantity);
                             setDripfeedDays(recDays);
-                            setDripfeedRuns(recommendedDripfeedRuns(recDays, item.dripfeedMaxRuns));
+                            setDripfeedRuns(recommendedDripfeedRuns(recDays, maxDripfeedRunsForQuantity));
                           }
                         }}
                       />
@@ -497,6 +519,11 @@ export default function CheckoutPage() {
                         ? `Obligatoire au-delà de 10 000 unités — minimum ${mandatoryDays} jours pour cette quantité.`
                         : "Plus la livraison est étalée dans le temps, plus faible est la probabilité que les followers/likes/vues chutent après coup."}
                     </p>
+                    {!canUseDripfeed && (
+                      <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                        Cette quantité ne permet pas encore deux lots valides. Minimum : {(item.minQuantity * 2).toLocaleString("fr-FR")} unités.
+                      </p>
+                    )}
                     {dripfeedEnabled && (
                       <>
                         <div className="mt-3">
@@ -522,7 +549,7 @@ export default function CheckoutPage() {
                               onClick={() => {
                                 const recDays = recommendedDripfeedDays(quantity);
                                 setDripfeedDays(recDays);
-                                setDripfeedRuns(recommendedDripfeedRuns(recDays, item.dripfeedMaxRuns));
+                                setDripfeedRuns(recommendedDripfeedRuns(recDays, maxDripfeedRunsForQuantity));
                               }}
                               className="font-medium text-ink-600 hover:underline"
                             >
@@ -536,7 +563,7 @@ export default function CheckoutPage() {
                           <input
                             type="number"
                             min={2}
-                            max={item.dripfeedMaxRuns ?? 1000}
+                            max={maxDripfeedRunsForQuantity}
                             value={dripfeedRunsInput}
                             inputMode="numeric"
                             onChange={(e) => {
@@ -549,6 +576,11 @@ export default function CheckoutPage() {
                             onBlur={normalizeDripfeedRuns}
                             className="w-28 rounded-lg border border-ink-200 px-2 py-1.5 text-sm"
                           />
+                          {quantity % dripfeedRuns === 0 && (
+                            <span className="mt-1 block text-ink-400">
+                              {Math.round(quantity / dripfeedRuns).toLocaleString("fr-FR")} unités par lot
+                            </span>
+                          )}
                         </label>
                       </>
                     )}

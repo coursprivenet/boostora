@@ -169,8 +169,28 @@ export class OrdersService {
       if (dto.dripfeedRuns == null || dto.dripfeedIntervalMinutes == null) {
         throw new BadRequestException("dripfeedRuns et dripfeedIntervalMinutes doivent être fournis ensemble");
       }
+      if (dto.dripfeedRuns < 2) {
+        throw new BadRequestException("La livraison échelonnée doit comporter au moins 2 lots");
+      }
       if (!priced.providerService.dripfeedSupported) {
         throw new BadRequestException("Ce service ne supporte pas la livraison échelonnée");
+      }
+      // PanelFollows interprets `quantity` as the quantity of *each* batch when
+      // runs/interval are present. Wassago stores the total requested quantity, so it
+      // must be split exactly before the provider order is created below.
+      if (dto.quantity % dto.dripfeedRuns !== 0) {
+        throw new BadRequestException(
+          `La quantité totale doit être divisible par le nombre de lots (${dto.dripfeedRuns})`,
+        );
+      }
+      const quantityPerRun = dto.quantity / dto.dripfeedRuns;
+      if (
+        quantityPerRun < priced.providerService.minQuantity ||
+        quantityPerRun > priced.providerService.maxQuantity
+      ) {
+        throw new BadRequestException(
+          `Chaque lot doit contenir entre ${priced.providerService.minQuantity} et ${priced.providerService.maxQuantity} unités`,
+        );
       }
       const limits = extractDripfeedLimits(priced.providerService.fieldsSchema);
       if (limits.maxRuns != null && dto.dripfeedRuns > limits.maxRuns) {
@@ -543,7 +563,12 @@ export class OrdersService {
         {
           service: order.catalogService.providerService.providerServiceId,
           link: order.targetLink,
-          quantity: order.quantity,
+          // PanelFollows treats quantity as "per run" for drip-feed. The database
+          // intentionally keeps the customer-facing total in order.quantity.
+          quantity:
+            order.dripfeedRuns != null && order.dripfeedIntervalMinutes != null
+              ? order.quantity / order.dripfeedRuns
+              : order.quantity,
           ...(order.dripfeedRuns != null && order.dripfeedIntervalMinutes != null
             ? { runs: order.dripfeedRuns, interval: order.dripfeedIntervalMinutes }
             : {}),
