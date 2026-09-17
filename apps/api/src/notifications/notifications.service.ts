@@ -33,6 +33,17 @@ export class NotificationsService {
     }
   }
 
+  /**
+   * For ops-facing events the client shouldn't see the raw truth of (e.g. our own
+   * PanelFollows balance running dry) — every admin gets the same in-app notification
+   * + email that `notify` already bundles, so nobody has to dig through the database
+   * to find out an order needs manual attention.
+   */
+  async notifyAdmins(type: string, title: string, body?: string, link?: string) {
+    const admins = await this.prisma.user.findMany({ where: { role: "ADMIN" }, select: { id: true } });
+    await Promise.all(admins.map((a) => this.notify(a.id, type, title, body, link)));
+  }
+
   async listMine(userId: string, limit = 50) {
     return this.prisma.notification.findMany({
       where: { userId },

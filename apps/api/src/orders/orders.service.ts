@@ -554,6 +554,15 @@ export class OrdersService {
           "Notre équipe a été alertée et va régulariser ça rapidement.",
           `/dashboard/orders/${order.id}`,
         );
+        // The client sees a reassuring "on s'en occupe" — admins need the real reason
+        // (most often: PanelFollows balance ran dry) so someone actually acts on it.
+        const reason = err instanceof PanelFollowsApiError ? err.message : (err as Error).message;
+        await this.notifications.notifyAdmins(
+          "admin.order_submit_failed",
+          "Commande bloquée — action requise",
+          `${order.catalogService.name} (${order.quantity} unités, ${order.priceClientXof} FCFA déjà payés) n'a pas pu être transmise à PanelFollows : ${reason}. Recharge le solde puis réessaie depuis l'admin.`,
+          `/admin/orders`,
+        );
       }
     }
   }

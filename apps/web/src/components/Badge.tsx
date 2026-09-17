@@ -7,13 +7,19 @@ const TONE_CLASSES: Record<string, string> = {
   danger: "bg-rose-100 text-rose-700",
 };
 
-export function StatusBadge({ status }: { status: string }) {
-  const tone = orderStatusTone(status);
+export function StatusBadge({
+  status,
+  audience = "admin",
+}: {
+  status: string;
+  audience?: "admin" | "client";
+}) {
+  const tone = orderStatusTone(status, audience);
   return (
     <span
       className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${TONE_CLASSES[tone]}`}
     >
-      {orderStatusLabel(status)}
+      {orderStatusLabel(status, audience)}
     </span>
   );
 }

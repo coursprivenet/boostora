@@ -119,6 +119,7 @@ export interface AdminOrder extends OrderSummary {
   marginXof: string;
   providerOrderId: number | null;
   providerStatusRaw: string | null;
+  errorLog: { code?: string; message: string; httpStatus?: number } | null;
   user: { email: string };
   yengapayFeesXof: number | null;
   netMarginXof: number | null;

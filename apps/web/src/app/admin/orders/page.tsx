@@ -17,6 +17,8 @@ export default function AdminOrdersPage() {
   const [refundError, setRefundError] = useState<string | null>(null);
   const [refundBusy, setRefundBusy] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [retryError, setRetryError] = useState<{ id: string; message: string } | null>(null);
 
   function load() {
     if (!token) return;
@@ -56,6 +58,20 @@ export default function AdminOrdersPage() {
       setRefundError(err instanceof ApiError ? err.message : "Remboursement impossible");
     } finally {
       setRefundBusy(false);
+    }
+  }
+
+  async function retrySubmission(orderId: string) {
+    if (!token) return;
+    setRetryingId(orderId);
+    setRetryError(null);
+    try {
+      await api.post(`/orders/${orderId}/submit-to-provider`, {}, token);
+      load();
+    } catch (err) {
+      setRetryError({ id: orderId, message: err instanceof ApiError ? err.message : "Échec de la nouvelle tentative" });
+    } finally {
+      setRetryingId(null);
     }
   }
 
@@ -110,6 +126,24 @@ export default function AdminOrdersPage() {
                     </td>
                     <td className="px-4 py-3">
                       <StatusBadge status={o.orderStatus} />
+                      {(o.orderStatus === "SUBMIT_FAILED" || o.orderStatus === "RETRY_SUBMIT") && (
+                        <div className="mt-1.5">
+                          {o.errorLog?.message && (
+                            <p className="max-w-[180px] text-xs text-rose-600">{o.errorLog.message}</p>
+                          )}
+                          <Button
+                            variant="secondary"
+                            className="!py-1 !px-2 mt-1 text-xs"
+                            loading={retryingId === o.id}
+                            onClick={() => retrySubmission(o.id)}
+                          >
+                            Réessayer
+                          </Button>
+                          {retryError?.id === o.id && (
+                            <p className="mt-1 text-xs text-rose-600">{retryError.message}</p>
+                          )}
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-ink-400">
                       {new Date(o.createdAt).toLocaleDateString("fr-FR")}

@@ -22,7 +22,17 @@ const STATUS_LABELS: Record<string, string> = {
   EXPIRED: "Expirée",
 };
 
-export function orderStatusLabel(status: string): string {
+// A provider-side submission failure (most commonly: our own PanelFollows balance ran
+// dry) is an ops problem, not the client's — showing "Échec" would alarm someone who
+// already paid for nothing they did wrong. The client sees a reassuring in-progress
+// state; the real status (and the retry button) stays visible to admins.
+const CLIENT_FACING_OVERRIDES: Record<string, string> = {
+  SUBMIT_FAILED: "En cours de traitement",
+  RETRY_SUBMIT: "En cours de traitement",
+};
+
+export function orderStatusLabel(status: string, audience: "admin" | "client" = "admin"): string {
+  if (audience === "client" && CLIENT_FACING_OVERRIDES[status]) return CLIENT_FACING_OVERRIDES[status];
   return STATUS_LABELS[status] ?? status;
 }
 
@@ -45,7 +55,8 @@ const STATUS_TONES: Record<string, "neutral" | "warning" | "success" | "danger">
   EXPIRED: "danger",
 };
 
-export function orderStatusTone(status: string) {
+export function orderStatusTone(status: string, audience: "admin" | "client" = "admin") {
+  if (audience === "client" && CLIENT_FACING_OVERRIDES[status]) return "neutral";
   return STATUS_TONES[status] ?? "neutral";
 }
 

@@ -92,7 +92,7 @@ export default function DashboardPage() {
                 </div>
                 <div className="flex items-center gap-4">
                   <span className="font-medium text-ink-900">{formatXof(order.priceClientXof)}</span>
-                  <StatusBadge status={order.orderStatus} />
+                  <StatusBadge status={order.orderStatus} audience="client" />
                 </div>
               </div>
 

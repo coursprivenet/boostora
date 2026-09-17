@@ -89,7 +89,7 @@ export default function OrderDetailPage() {
             <h1 className="text-xl font-semibold text-ink-900">{order.catalogService.name}</h1>
             <p className="mt-1 break-all text-sm text-ink-500">{order.targetLink}</p>
           </div>
-          <StatusBadge status={order.orderStatus} />
+          <StatusBadge status={order.orderStatus} audience="client" />
         </div>
 
         <dl className="grid grid-cols-2 gap-4 border-t border-ink-100 pt-4 text-sm">
