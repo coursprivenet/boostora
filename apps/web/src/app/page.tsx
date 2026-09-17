@@ -48,11 +48,12 @@ export default function HomePage() {
       <section className="border-b-2 border-ink-900 bg-[#FFFBF0] px-6 py-14 sm:py-20">
         <div className="mx-auto grid max-w-[1600px] items-center gap-10 lg:grid-cols-[1fr_1.3fr]">
           <div className="text-center lg:text-left">
-            <h1 className="mx-auto max-w-xl text-4xl font-semibold tracking-tight text-ink-900 lg:mx-0">
-              Développe ta présence sur les réseaux sociaux
+            <h1 className="mx-auto max-w-2xl text-5xl font-semibold leading-[0.95] tracking-tight text-ink-900 sm:text-6xl lg:mx-0 lg:text-7xl">
+              Plus d&apos;abonnés. Plus de vues. Plus d&apos;impact.
             </h1>
-            <p className="mx-auto mt-4 max-w-xl text-ink-500 lg:mx-0">
-              Followers, vues, likes et engagement, livrés rapidement et payables en Mobile Money.
+            <p className="mx-auto mt-6 max-w-xl text-base leading-relaxed text-ink-600 lg:mx-0 lg:text-lg">
+              Wassago propose des abonnés, likes, vues et commentaires pour vos réseaux sociaux.
+              Choisissez ce qu&apos;il vous faut, payez facilement par Mobile Money et gardez le contrôle sur votre commande.
             </p>
             <Link
               href="/services"
