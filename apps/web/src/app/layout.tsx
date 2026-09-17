@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { AuthProvider } from "@/lib/auth-context";
-import { Navbar } from "@/components/Navbar";
-import { Footer } from "@/components/Footer";
-import { MobileBottomNav } from "@/components/MobileBottomNav";
+import { SiteChrome } from "@/components/SiteChrome";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -18,10 +16,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="fr" className={inter.variable}>
       <body className="flex min-h-screen flex-col font-sans">
         <AuthProvider>
-          <Navbar />
-          <div className="flex-1 pb-16 lg:pb-0">{children}</div>
-          <Footer />
-          <MobileBottomNav />
+          <SiteChrome>{children}</SiteChrome>
         </AuthProvider>
       </body>
     </html>
