@@ -2,7 +2,7 @@
 // policy and can legitimately differ (or be a list) in some setups; conflating the two
 // meant every email link silently pointed at whatever CORS_ORIGIN happened to be set to
 // in that environment (localhost, in production, until this was caught).
-const APP_URL = process.env.APP_URL ?? "https://boostora-web-one.vercel.app";
+const APP_URL = process.env.APP_URL ?? "https://wassago.com";
 
 /** One shared transactional layout — plain, inline-styled (safe across mail clients), no build step. */
 export function renderNotificationEmail(title: string, body: string | null, link: string | null) {

@@ -21,7 +21,19 @@ async function bootstrap() {
   });
   app.use(helmet());
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
-  app.enableCors({ origin: process.env.CORS_ORIGIN ?? "http://localhost:3000" });
+  // Kept in sync with src/main.ts's CORS logic — see that file for why this can't just
+  // be a plain array passed to enableCors (echoes back the whole joined list, which
+  // every browser rejects as an invalid Access-Control-Allow-Origin value).
+  const corsOrigins = (process.env.CORS_ORIGIN ?? "http://localhost:3000")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
+  app.enableCors({
+    origin: (origin, callback) => {
+      if (!origin || corsOrigins.includes(origin)) callback(null, true);
+      else callback(new Error(`Origin ${origin} not allowed by CORS`), false);
+    },
+  });
   await app.init();
 }
 
