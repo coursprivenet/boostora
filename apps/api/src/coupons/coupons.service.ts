@@ -27,6 +27,18 @@ export class CouponsService {
     return this.prisma.coupon.findMany({ orderBy: { createdAt: "desc" } });
   }
 
+  /** Public-safe: just enough for checkout to decide whether to show the coupon field at
+   * all — no reason to render a dead-end "code promo" box while zero codes exist. */
+  async anyRedeemableExist() {
+    const count = await this.prisma.coupon.count({
+      where: {
+        isActive: true,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+      },
+    });
+    return { exists: count > 0 };
+  }
+
   async create(dto: UpsertCouponDto, actorUserId: string) {
     const created = await this.prisma.coupon.create({
       data: {

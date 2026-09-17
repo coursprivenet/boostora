@@ -61,7 +61,17 @@ export function MobileBottomNav() {
   if (loading) return null;
 
   return (
-    <nav className="print:hidden fixed inset-x-0 bottom-0 z-40 flex items-end justify-around border-t-2 border-ink-900 bg-white px-2 pb-[env(safe-area-inset-bottom)] pt-1.5 lg:hidden">
+    <nav className="print:hidden fixed inset-x-0 bottom-0 z-40 flex items-end justify-around bg-white px-2 pb-[env(safe-area-inset-bottom)] pt-1.5 shadow-[0_-2px_10px_rgba(0,0,0,0.06)] lg:hidden">
+      {/* Top border with a circular notch cut out where the center button pops through —
+       * a plain border-t would draw a straight line across/behind the button, which read
+       * as an ugly seam where the round button meets the flat line. */}
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-ink-900"
+        style={{
+          maskImage: "radial-gradient(circle 34px at 50% 0%, transparent 99%, black 100%)",
+          WebkitMaskImage: "radial-gradient(circle 34px at 50% 0%, transparent 99%, black 100%)",
+        }}
+      />
       {items.map(({ href, label, Icon, center }) => {
         const active = pathname === href;
         if (center) {

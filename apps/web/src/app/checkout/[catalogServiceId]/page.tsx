@@ -74,6 +74,45 @@ type Step =
   | { kind: "success"; transactionId: string }
   | { kind: "pending"; orderId: string };
 
+const STEP_INDEX: Record<Step["kind"], number> = {
+  form: 0,
+  operator: 1,
+  otp: 1,
+  success: 2,
+  pending: 2,
+};
+const STEP_LABELS = ["Détails", "Paiement", "Confirmation"];
+
+function StepIndicator({ current }: { current: number }) {
+  return (
+    <div className="mb-6 flex items-center print:hidden">
+      {STEP_LABELS.map((label, i) => (
+        <div key={label} className="flex flex-1 items-center last:flex-none">
+          <div className="flex items-center gap-2">
+            <span
+              className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 text-xs font-bold ${
+                i < current
+                  ? "border-ink-900 bg-ink-900 text-brand-500"
+                  : i === current
+                    ? "border-ink-900 bg-brand-500 text-ink-900"
+                    : "border-ink-200 bg-white text-ink-300"
+              }`}
+            >
+              {i < current ? "✓" : i + 1}
+            </span>
+            <span className={`hidden text-xs font-medium sm:inline ${i <= current ? "text-ink-900" : "text-ink-300"}`}>
+              {label}
+            </span>
+          </div>
+          {i < STEP_LABELS.length - 1 && (
+            <div className={`mx-3 h-0.5 flex-1 ${i < current ? "bg-ink-900" : "bg-ink-100"}`} />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function CheckoutPage() {
   const { catalogServiceId } = useParams<{ catalogServiceId: string }>();
   const { token, loading: authLoading } = useRequireAuth();
@@ -95,6 +134,7 @@ export default function CheckoutPage() {
   const [dripfeedDays, setDripfeedDays] = useState(3);
   const previewRequestId = useRef(0);
 
+  const [couponsExist, setCouponsExist] = useState(false);
   const [couponCode, setCouponCode] = useState("");
   const [couponPreview, setCouponPreview] = useState<CouponPreview | null>(null);
   const [couponError, setCouponError] = useState<string | null>(null);
@@ -133,6 +173,11 @@ export default function CheckoutPage() {
         setQuantity(effectiveMinFor(data.minQuantity));
       })
       .catch(() => setLoadError("Service introuvable ou indisponible."));
+    // No point rendering a "code promo" dead end while nothing exists to redeem.
+    api
+      .get<{ exists: boolean }>("/coupons/exists")
+      .then((r) => setCouponsExist(r.exists))
+      .catch(() => setCouponsExist(false));
   }, [catalogServiceId]);
 
   // Live price as the client drags the slider or types a quantity — debounced so dragging
@@ -262,374 +307,396 @@ export default function CheckoutPage() {
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-10">
-    <div className="lg:grid lg:grid-cols-[1fr_1.1fr] lg:items-start lg:gap-12">
-    <div className="hidden lg:block">
-      {/* eslint-disable-next-line @next/next/no-img-element -- static illustration asset */}
-      <img
-        src="/illustrations/checkout/mascot.svg"
-        alt=""
-        className="animate-hero-float sticky top-28 w-full max-w-md"
-        style={{ animationDuration: "6s" }}
-      />
-    </div>
-    <div className="mx-auto max-w-lg lg:mx-0 lg:max-w-none">
-      <h1 className="text-xl font-semibold text-ink-900">{item.name}</h1>
-      <p className="mt-1 text-sm text-ink-500">{item.description}</p>
+      <div className="lg:grid lg:grid-cols-[1fr_1.1fr] lg:gap-12">
+        <div className="hidden lg:flex lg:h-full lg:items-center lg:justify-center">
+          {/* eslint-disable-next-line @next/next/no-img-element -- static illustration asset */}
+          <img
+            src="/illustrations/checkout/mascot.svg"
+            alt=""
+            className="animate-hero-float w-full max-w-md"
+            style={{ animationDuration: "6s" }}
+          />
+        </div>
+        <div className="mx-auto max-w-lg lg:mx-0 lg:max-w-none">
+          <StepIndicator current={STEP_INDEX[step.kind]} />
 
-      <p className="mt-2 rounded-lg bg-ink-50 px-3 py-2 text-xs text-ink-500">
-        Un pic d&apos;activité inhabituel (beaucoup de followers/likes/vues d&apos;un coup) peut être
-        repéré par la plateforme visée et entraîner une suppression partielle ou, plus rarement, une
-        restriction du compte. Ce n&apos;est pas systématique, mais le risque existe
-        {item.dripfeedSupported
-          ? " — l'option « Étaler la livraison » ci-dessous le réduit en imitant une croissance naturelle."
-          : "."}
-      </p>
+          <div className="rounded-xl2 border-2 border-ink-900 bg-white p-5">
+            <div className="flex items-start justify-between gap-3">
+              <h1 className="text-lg font-semibold text-ink-900">{item.name}</h1>
+              {item.riskWarning && (
+                <span className="shrink-0 rounded-full bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-700">
+                  Sans refill
+                </span>
+              )}
+            </div>
+            {item.description && <p className="mt-1 text-sm text-ink-500">{item.description}</p>}
 
-      {item.riskWarning && (
-        <p className="mt-2 flex items-start gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          <span>⚠ {item.riskWarning}</span>
-          <Tooltip text="Si le nombre livré baisse après coup (compte suspendu, purge de la plateforme, etc.), ce service ne recompense pas automatiquement — et aucun chiffre n'est garanti à 100%, les réseaux sociaux gardent le contrôle final." />
-        </p>
-      )}
-
-      <div className="mt-6 rounded-xl2 border border-ink-100 bg-white p-6 shadow-soft">
-        {step.kind === "form" && (
-          <form onSubmit={submitOrder} className="flex flex-col gap-4">
-            <Input
-              label="Lien cible (profil, publication, vidéo...)"
-              type="url"
-              required
-              placeholder="https://..."
-              value={targetLink}
-              onChange={(e) => setTargetLink(e.target.value)}
-            />
-            <div>
-              <div className="mb-1.5 flex items-center justify-between">
-                <span className="text-sm font-medium text-ink-700">Quantité</span>
-                <input
-                  type="number"
-                  required
-                  min={effectiveMinFor(item.minQuantity)}
-                  max={item.maxQuantity}
-                  value={quantity}
-                  onChange={(e) => {
-                    const next = Number(e.target.value);
-                    setQuantity(next);
-                    setCouponPreview(null);
-                  }}
-                  className="w-28 rounded-lg border border-ink-200 px-2 py-1.5 text-right text-sm text-ink-900 focus:outline-none focus:ring-2 focus:ring-brand-400"
-                />
-              </div>
-              <input
-                type="range"
-                min={0}
-                max={SLIDER_STEPS}
-                value={quantityToSliderPos(quantity, effectiveMinFor(item.minQuantity), sliderMaxFor(item.maxQuantity))}
-                onChange={(e) => {
-                  const next = sliderPosToQuantity(
-                    Number(e.target.value),
-                    effectiveMinFor(item.minQuantity),
-                    sliderMaxFor(item.maxQuantity),
-                  );
-                  setQuantity(next);
-                  setCouponPreview(null);
-                }}
-                className="w-full accent-brand-500"
-              />
-              <div className="mt-1 flex justify-between text-xs text-ink-400">
-                <span>Min {effectiveMinFor(item.minQuantity).toLocaleString("fr-FR")}</span>
+            <div className="mt-3 flex flex-col gap-2 border-t border-ink-100 pt-3">
+              <div className="flex items-start gap-2 text-xs text-ink-500">
+                <span aria-hidden>⚠️</span>
                 <span>
-                  Max {sliderMaxFor(item.maxQuantity).toLocaleString("fr-FR")}
-                  {item.maxQuantity > 100000 && " (curseur) — saisis un nombre plus grand si besoin"}
+                  Un pic d&apos;activité inhabituel peut être repéré par la plateforme visée et
+                  entraîner une suppression partielle du résultat, ou plus rarement une restriction
+                  du compte
+                  {item.dripfeedSupported ? " — étale la livraison ci-dessous pour réduire ce risque." : "."}
                 </span>
               </div>
-
-              <div className="mt-3 flex items-center justify-between rounded-lg bg-ink-50 px-4 py-3">
-                <span className="text-sm text-ink-600">Total à payer</span>
-                {priceLoading ? (
-                  <span className="text-sm text-ink-400">Calcul…</span>
-                ) : livePrice ? (
-                  <span className="text-lg font-semibold text-ink-900">{formatXof(livePrice)}</span>
-                ) : (
-                  <span className="text-sm text-rose-600">Quantité invalide</span>
-                )}
-              </div>
+              {item.riskWarning && (
+                <div className="flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  <span>{item.riskWarning}</span>
+                  <Tooltip text="Si le nombre livré baisse après coup (compte suspendu, purge de la plateforme, etc.), ce service ne recompense pas automatiquement — et aucun chiffre n'est garanti à 100%, les réseaux sociaux gardent le contrôle final." />
+                </div>
+              )}
             </div>
+          </div>
 
-            {mandatoryDays > 0 && !item.dripfeedSupported && (
-              <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                Cette quantité dépasse 10 000 unités — ce service ne supporte pas la livraison
-                échelonnée, obligatoire au-delà de ce seuil. Réduis la quantité ou choisis une autre
-                offre.
-              </p>
-            )}
+          <div className="mt-4 rounded-xl2 border-2 border-ink-900 bg-white p-6">
+            {step.kind === "form" && (
+              <form onSubmit={submitOrder} className="flex flex-col gap-5">
+                <Input
+                  label="Lien cible (profil, publication, vidéo...)"
+                  type="url"
+                  required
+                  placeholder="https://..."
+                  value={targetLink}
+                  onChange={(e) => setTargetLink(e.target.value)}
+                />
 
-            {item.dripfeedSupported && (
-              <div className="rounded-lg border border-ink-100 p-3">
-                <label
-                  className={`flex items-center gap-2 text-sm font-medium text-ink-700 ${mandatoryDays > 0 ? "opacity-70" : ""}`}
-                >
+                <div className="rounded-xl2 bg-ink-50 p-4">
+                  <div className="mb-1.5 flex items-center justify-between">
+                    <span className="text-sm font-medium text-ink-700">Quantité</span>
+                    <input
+                      type="number"
+                      required
+                      min={effectiveMinFor(item.minQuantity)}
+                      max={item.maxQuantity}
+                      value={quantity}
+                      onChange={(e) => {
+                        const next = Number(e.target.value);
+                        setQuantity(next);
+                        setCouponPreview(null);
+                      }}
+                      className="w-28 rounded-lg border border-ink-200 bg-white px-2 py-1.5 text-right text-sm text-ink-900 focus:outline-none focus:ring-2 focus:ring-brand-400"
+                    />
+                  </div>
                   <input
-                    type="checkbox"
-                    checked={dripfeedEnabled}
-                    disabled={mandatoryDays > 0}
+                    type="range"
+                    min={0}
+                    max={SLIDER_STEPS}
+                    value={quantityToSliderPos(quantity, effectiveMinFor(item.minQuantity), sliderMaxFor(item.maxQuantity))}
                     onChange={(e) => {
-                      const enabled = e.target.checked;
-                      setDripfeedEnabled(enabled);
-                      if (enabled) {
-                        const recDays = recommendedDripfeedDays(quantity);
-                        setDripfeedDays(recDays);
-                        setDripfeedRuns(recommendedDripfeedRuns(recDays, item.dripfeedMaxRuns));
-                      }
+                      const next = sliderPosToQuantity(
+                        Number(e.target.value),
+                        effectiveMinFor(item.minQuantity),
+                        sliderMaxFor(item.maxQuantity),
+                      );
+                      setQuantity(next);
+                      setCouponPreview(null);
                     }}
+                    className="w-full accent-brand-500"
                   />
-                  Étaler la livraison
-                  <Tooltip text="Répartit la livraison en plusieurs lots sur plusieurs jours au lieu de tout livrer d'un coup — réduit le risque que la plateforme détecte un pic anormal d'activité et supprime les followers/likes/vues ou restreigne le compte." />
-                </label>
-                <p className="mt-1 text-xs text-ink-400">
-                  {mandatoryDays > 0
-                    ? `Obligatoire au-delà de 10 000 unités — minimum ${mandatoryDays} jours pour cette quantité.`
-                    : "Plus la livraison est étalée dans le temps, plus faible est la probabilité que les followers/likes/vues chutent après coup."}
-                </p>
-                {dripfeedEnabled && (
-                  <>
-                    <div className="mt-3">
-                      <div className="mb-1.5 flex items-center justify-between text-xs">
-                        <span className="text-ink-500">Sur combien de jours</span>
-                        <span className="font-medium text-ink-700">{dripfeedDays} j</span>
-                      </div>
+                  <div className="mt-1 flex justify-between text-xs text-ink-400">
+                    <span>Min {effectiveMinFor(item.minQuantity).toLocaleString("fr-FR")}</span>
+                    <span>
+                      Max {sliderMaxFor(item.maxQuantity).toLocaleString("fr-FR")}
+                      {item.maxQuantity > 100000 && " (curseur) — saisis un nombre plus grand si besoin"}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-between rounded-lg border-2 border-ink-900 bg-brand-500 px-4 py-3">
+                    <span className="text-sm font-semibold text-ink-900">Total à payer</span>
+                    {priceLoading ? (
+                      <span className="text-sm text-ink-700">Calcul…</span>
+                    ) : livePrice ? (
+                      <span className="text-xl font-bold text-ink-900">{formatXof(livePrice)}</span>
+                    ) : (
+                      <span className="text-sm text-rose-700">Quantité invalide</span>
+                    )}
+                  </div>
+                </div>
+
+                {mandatoryDays > 0 && !item.dripfeedSupported && (
+                  <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                    Cette quantité dépasse 10 000 unités — ce service ne supporte pas la livraison
+                    échelonnée, obligatoire au-delà de ce seuil. Réduis la quantité ou choisis une
+                    autre offre.
+                  </p>
+                )}
+
+                {item.dripfeedSupported && (
+                  <div
+                    className={`rounded-xl2 border p-4 ${dripfeedEnabled ? "border-brand-500 bg-brand-300/10" : "border-ink-100"}`}
+                  >
+                    <label
+                      className={`flex items-center gap-2 text-sm font-medium text-ink-700 ${mandatoryDays > 0 ? "opacity-70" : ""}`}
+                    >
                       <input
-                        type="range"
-                        min={mandatoryDays > 0 ? mandatoryDays : 1}
-                        max={30}
-                        value={dripfeedDays}
-                        onChange={(e) => setDripfeedDays(Number(e.target.value))}
-                        className="w-full accent-brand-500"
-                      />
-                      <div className="mt-1 flex items-center justify-between text-xs text-ink-400">
-                        <span>
-                          Recommandé pour {quantity.toLocaleString("fr-FR")} unités :{" "}
-                          {recommendedDripfeedDays(quantity)} jours
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => {
+                        type="checkbox"
+                        checked={dripfeedEnabled}
+                        disabled={mandatoryDays > 0}
+                        onChange={(e) => {
+                          const enabled = e.target.checked;
+                          setDripfeedEnabled(enabled);
+                          if (enabled) {
                             const recDays = recommendedDripfeedDays(quantity);
                             setDripfeedDays(recDays);
                             setDripfeedRuns(recommendedDripfeedRuns(recDays, item.dripfeedMaxRuns));
-                          }}
-                          className="font-medium text-ink-600 hover:underline"
-                        >
-                          Appliquer
-                        </button>
-                      </div>
-                    </div>
-
-                    <label className="mt-3 block text-xs">
-                      <span className="mb-1 block text-ink-500">Nombre de lots</span>
-                      <input
-                        type="number"
-                        min={2}
-                        max={item.dripfeedMaxRuns ?? 1000}
-                        value={dripfeedRuns}
-                        onChange={(e) => setDripfeedRuns(Math.max(2, Number(e.target.value)))}
-                        className="w-28 rounded-lg border border-ink-200 px-2 py-1.5 text-sm"
+                          }
+                        }}
                       />
+                      Étaler la livraison
+                      <Tooltip text="Répartit la livraison en plusieurs lots sur plusieurs jours au lieu de tout livrer d'un coup — réduit le risque que la plateforme détecte un pic anormal d'activité et supprime les followers/likes/vues ou restreigne le compte." />
                     </label>
-                  </>
+                    <p className="mt-1 text-xs text-ink-400">
+                      {mandatoryDays > 0
+                        ? `Obligatoire au-delà de 10 000 unités — minimum ${mandatoryDays} jours pour cette quantité.`
+                        : "Plus la livraison est étalée dans le temps, plus faible est la probabilité que les followers/likes/vues chutent après coup."}
+                    </p>
+                    {dripfeedEnabled && (
+                      <>
+                        <div className="mt-3">
+                          <div className="mb-1.5 flex items-center justify-between text-xs">
+                            <span className="text-ink-500">Sur combien de jours</span>
+                            <span className="font-medium text-ink-700">{dripfeedDays} j</span>
+                          </div>
+                          <input
+                            type="range"
+                            min={mandatoryDays > 0 ? mandatoryDays : 1}
+                            max={30}
+                            value={dripfeedDays}
+                            onChange={(e) => setDripfeedDays(Number(e.target.value))}
+                            className="w-full accent-brand-500"
+                          />
+                          <div className="mt-1 flex items-center justify-between text-xs text-ink-400">
+                            <span>
+                              Recommandé pour {quantity.toLocaleString("fr-FR")} unités :{" "}
+                              {recommendedDripfeedDays(quantity)} jours
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const recDays = recommendedDripfeedDays(quantity);
+                                setDripfeedDays(recDays);
+                                setDripfeedRuns(recommendedDripfeedRuns(recDays, item.dripfeedMaxRuns));
+                              }}
+                              className="font-medium text-ink-600 hover:underline"
+                            >
+                              Appliquer
+                            </button>
+                          </div>
+                        </div>
+
+                        <label className="mt-3 block text-xs">
+                          <span className="mb-1 block text-ink-500">Nombre de lots</span>
+                          <input
+                            type="number"
+                            min={2}
+                            max={item.dripfeedMaxRuns ?? 1000}
+                            value={dripfeedRuns}
+                            onChange={(e) => setDripfeedRuns(Math.max(2, Number(e.target.value)))}
+                            className="w-28 rounded-lg border border-ink-200 px-2 py-1.5 text-sm"
+                          />
+                        </label>
+                      </>
+                    )}
+                    {dripfeedEnabled && computedIntervalMinutes() != null && (
+                      <p className="mt-2 text-xs text-ink-400">
+                        ≈ 1 lot toutes les {Math.round((computedIntervalMinutes() ?? 0) / 60)}h
+                      </p>
+                    )}
+                  </div>
                 )}
-                {dripfeedEnabled && computedIntervalMinutes() != null && (
-                  <p className="mt-2 text-xs text-ink-400">
-                    ≈ 1 lot toutes les {Math.round((computedIntervalMinutes() ?? 0) / 60)}h
-                  </p>
+
+                {couponsExist && (
+                  <div>
+                    <div className="flex items-end gap-2">
+                      <div className="flex-1">
+                        <Input
+                          label="Code promo (optionnel)"
+                          value={couponCode}
+                          onChange={(e) => {
+                            setCouponCode(e.target.value);
+                            setCouponPreview(null);
+                            setCouponError(null);
+                          }}
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        loading={couponChecking}
+                        disabled={!couponCode.trim()}
+                        onClick={checkCoupon}
+                      >
+                        Vérifier
+                      </Button>
+                    </div>
+                    {couponError && <p className="mt-1 text-sm text-rose-600">{couponError}</p>}
+                    {couponPreview && (
+                      <p className="mt-1 text-sm text-emerald-600">
+                        Code valide : -{formatXof(couponPreview.discountXof)} — nouveau total{" "}
+                        {formatXof(couponPreview.finalPriceXof)}
+                      </p>
+                    )}
+                  </div>
                 )}
+
+                <label className="flex items-start gap-2 text-sm text-ink-600">
+                  <input
+                    type="checkbox"
+                    required
+                    checked={acceptedTerms}
+                    onChange={(e) => setAcceptedTerms(e.target.checked)}
+                    className="mt-0.5"
+                  />
+                  <span>
+                    J&apos;ai lu et j&apos;accepte les{" "}
+                    <Link href="/terms" target="_blank" className="underline hover:text-ink-900">
+                      Conditions d&apos;Utilisation
+                    </Link>{" "}
+                    et la{" "}
+                    <Link href="/refund-policy" target="_blank" className="underline hover:text-ink-900">
+                      Politique de Remboursement
+                    </Link>
+                    .
+                  </span>
+                </label>
+
+                {error && <p className="text-sm text-rose-600">{error}</p>}
+                <Button
+                  type="submit"
+                  loading={busy}
+                  disabled={!acceptedTerms || (mandatoryDays > 0 && !item.dripfeedSupported)}
+                  className="w-full"
+                >
+                  Continuer vers le paiement
+                </Button>
+              </form>
+            )}
+
+            {step.kind === "operator" && (
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between rounded-lg border-2 border-ink-900 bg-brand-500 px-4 py-3">
+                  <span className="text-sm font-semibold text-ink-900">Total à payer</span>
+                  <span className="text-xl font-bold text-ink-900">{formatXof(step.created.priceClientXof)}</span>
+                </div>
+                {Number(step.created.discountXof) > 0 && (
+                  <p className="text-sm text-emerald-600">-{formatXof(step.created.discountXof)} appliqué</p>
+                )}
+                <p className="mt-1 text-sm font-medium text-ink-700">Choisis ton moyen de paiement :</p>
+                {step.created.availableOperators.map((op) => (
+                  <button
+                    key={op.code}
+                    onClick={() => chooseOperator(step.created, op)}
+                    className="flex items-center gap-3 rounded-xl2 border-2 border-ink-900 px-4 py-3 text-left transition-colors hover:bg-brand-300/20"
+                  >
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-ink-900 bg-white text-sm font-bold text-ink-900">
+                      {op.name.charAt(0)}
+                    </span>
+                    <span className="flex-1">
+                      <span className="block font-medium text-ink-900">{op.name}</span>
+                      <span className="block text-xs text-ink-400">{op.countryName}</span>
+                    </span>
+                  </button>
+                ))}
+                {error && <p className="text-sm text-rose-600">{error}</p>}
               </div>
             )}
 
-            <div>
-              <div className="flex items-end gap-2">
-                <div className="flex-1">
-                  <Input
-                    label="Code promo (optionnel)"
-                    value={couponCode}
-                    onChange={(e) => {
-                      setCouponCode(e.target.value);
-                      setCouponPreview(null);
-                      setCouponError(null);
-                    }}
-                  />
+            {step.kind === "otp" && (
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center justify-between rounded-lg border-2 border-ink-900 bg-brand-500 px-4 py-3">
+                  <span className="text-sm font-semibold text-ink-900">{step.operator.name}</span>
+                  <span className="text-xl font-bold text-ink-900">{formatXof(step.created.priceClientXof)}</span>
                 </div>
+
+                <Input
+                  label="Numéro de téléphone"
+                  type="tel"
+                  required
+                  placeholder="70707070"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                />
+
+                {step.operator.flow === "ONE_STEP" ? (
+                  <div className="rounded-lg bg-ink-50 p-3 text-sm text-ink-600">
+                    Compose <strong>{step.operator.ussdCode}</strong> sur ton téléphone pour recevoir
+                    ton code, puis saisis-le ci-dessous.
+                  </div>
+                ) : !step.otpSent ? (
+                  <Button
+                    variant="secondary"
+                    loading={busy}
+                    disabled={!phone}
+                    onClick={() => sendOtp(step.created, step.operator)}
+                  >
+                    Recevoir le code par SMS
+                  </Button>
+                ) : (
+                  <p className="text-sm text-emerald-600">Code envoyé par SMS.</p>
+                )}
+
+                <Input
+                  label="Code de confirmation (OTP)"
+                  type="text"
+                  required
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
+                />
+
+                {error && <p className="text-sm text-rose-600">{error}</p>}
+
                 <Button
-                  type="button"
-                  variant="secondary"
-                  loading={couponChecking}
-                  disabled={!couponCode.trim()}
-                  onClick={checkCoupon}
+                  loading={busy}
+                  disabled={!phone || !otp}
+                  onClick={() => confirmPayment(step.created, step.operator)}
+                  className="w-full"
                 >
-                  Vérifier
+                  Confirmer le paiement
                 </Button>
               </div>
-              {couponError && <p className="mt-1 text-sm text-rose-600">{couponError}</p>}
-              {couponPreview && (
-                <p className="mt-1 text-sm text-emerald-600">
-                  Code valide : -{formatXof(couponPreview.discountXof)} — nouveau total{" "}
-                  {formatXof(couponPreview.finalPriceXof)}
-                </p>
-              )}
-            </div>
-
-            <label className="flex items-start gap-2 text-sm text-ink-600">
-              <input
-                type="checkbox"
-                required
-                checked={acceptedTerms}
-                onChange={(e) => setAcceptedTerms(e.target.checked)}
-                className="mt-0.5"
-              />
-              <span>
-                J&apos;ai lu et j&apos;accepte les{" "}
-                <Link href="/terms" target="_blank" className="underline hover:text-ink-900">
-                  Conditions d&apos;Utilisation
-                </Link>{" "}
-                et la{" "}
-                <Link href="/refund-policy" target="_blank" className="underline hover:text-ink-900">
-                  Politique de Remboursement
-                </Link>
-                .
-              </span>
-            </label>
-
-            {error && <p className="text-sm text-rose-600">{error}</p>}
-            <Button
-              type="submit"
-              loading={busy}
-              disabled={!acceptedTerms || (mandatoryDays > 0 && !item.dripfeedSupported)}
-              className="w-full"
-            >
-              Continuer vers le paiement
-            </Button>
-          </form>
-        )}
-
-        {step.kind === "operator" && (
-          <div className="flex flex-col gap-3">
-            <p className="mb-1 text-sm text-ink-500">
-              Total à payer : <strong className="text-ink-900">{formatXof(step.created.priceClientXof)}</strong>
-              {Number(step.created.discountXof) > 0 && (
-                <span className="ml-1 text-emerald-600">
-                  (-{formatXof(step.created.discountXof)} appliqué)
-                </span>
-              )}
-            </p>
-            <p className="text-sm font-medium text-ink-700">Choisis ton moyen de paiement :</p>
-            {step.created.availableOperators.map((op) => (
-              <button
-                key={op.code}
-                onClick={() => chooseOperator(step.created, op)}
-                className="flex items-center justify-between rounded-lg border border-ink-200 px-4 py-3 text-left hover:border-ink-400"
-              >
-                <span className="font-medium text-ink-900">{op.name}</span>
-                <span className="text-xs text-ink-400">{op.countryName}</span>
-              </button>
-            ))}
-            {error && <p className="text-sm text-rose-600">{error}</p>}
-          </div>
-        )}
-
-        {step.kind === "otp" && (
-          <div className="flex flex-col gap-4">
-            <p className="text-sm text-ink-500">
-              Paiement via <strong>{step.operator.name}</strong> —{" "}
-              {formatXof(step.created.priceClientXof)}
-            </p>
-
-            <Input
-              label="Numéro de téléphone"
-              type="tel"
-              required
-              placeholder="70707070"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-            />
-
-            {step.operator.flow === "ONE_STEP" ? (
-              <div className="rounded-lg bg-ink-50 p-3 text-sm text-ink-600">
-                Compose <strong>{step.operator.ussdCode}</strong> sur ton téléphone pour recevoir ton
-                code, puis saisis-le ci-dessous.
-              </div>
-            ) : !step.otpSent ? (
-              <Button
-                variant="secondary"
-                loading={busy}
-                disabled={!phone}
-                onClick={() => sendOtp(step.created, step.operator)}
-              >
-                Recevoir le code par SMS
-              </Button>
-            ) : (
-              <p className="text-sm text-emerald-600">Code envoyé par SMS.</p>
             )}
 
-            <Input
-              label="Code de confirmation (OTP)"
-              type="text"
-              required
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-            />
+            {step.kind === "success" && (
+              <div className="flex flex-col items-center gap-3 py-4 text-center">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-ink-900 bg-emerald-100 text-2xl text-emerald-600">
+                  ✓
+                </div>
+                <p className="text-lg font-semibold text-ink-900">Paiement confirmé</p>
+                <p className="text-sm text-ink-500">
+                  Ta commande est en cours de traitement. Réf. transaction : {step.transactionId}
+                </p>
+                <Button onClick={() => router.push("/dashboard")} className="mt-2">
+                  Voir mes commandes
+                </Button>
+              </div>
+            )}
 
-            {error && <p className="text-sm text-rose-600">{error}</p>}
-
-            <Button
-              loading={busy}
-              disabled={!phone || !otp}
-              onClick={() => confirmPayment(step.created, step.operator)}
-              className="w-full"
-            >
-              Confirmer le paiement
-            </Button>
+            {step.kind === "pending" && (
+              <div className="flex flex-col items-center gap-3 py-4 text-center">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-ink-900 bg-amber-100 text-2xl text-amber-600">
+                  …
+                </div>
+                <p className="text-lg font-semibold text-ink-900">Paiement en cours de vérification</p>
+                <p className="text-sm text-ink-500">
+                  L&apos;opérateur confirme le paiement — ça prend généralement quelques instants.
+                  Ta commande apparaîtra comme payée dès que ce sera fait.
+                </p>
+                <Button onClick={() => router.push(`/dashboard/orders/${step.orderId}`)} className="mt-2">
+                  Suivre ma commande
+                </Button>
+              </div>
+            )}
           </div>
-        )}
 
-        {step.kind === "success" && (
-          <div className="flex flex-col items-center gap-3 py-4 text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
-              ✓
-            </div>
-            <p className="font-medium text-ink-900">Paiement confirmé</p>
-            <p className="text-sm text-ink-500">
-              Ta commande est en cours de traitement. Réf. transaction : {step.transactionId}
-            </p>
-            <Button onClick={() => router.push("/dashboard")} className="mt-2">
-              Voir mes commandes
-            </Button>
-          </div>
-        )}
-
-        {step.kind === "pending" && (
-          <div className="flex flex-col items-center gap-3 py-4 text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 text-amber-600">
-              …
-            </div>
-            <p className="font-medium text-ink-900">Paiement en cours de vérification</p>
-            <p className="text-sm text-ink-500">
-              L&apos;opérateur confirme le paiement — ça prend généralement quelques instants.
-              Ta commande apparaîtra comme payée dès que ce sera fait.
-            </p>
-            <Button onClick={() => router.push(`/dashboard/orders/${step.orderId}`)} className="mt-2">
-              Suivre ma commande
-            </Button>
-          </div>
-        )}
+          {step.kind !== "success" && step.kind !== "pending" && (
+            <Link href="/services" className="mt-4 inline-block text-sm text-ink-500 hover:underline">
+              ← Retour au catalogue
+            </Link>
+          )}
+        </div>
       </div>
-
-      {step.kind !== "success" && step.kind !== "pending" && (
-        <Link href="/services" className="mt-4 inline-block text-sm text-ink-500 hover:underline">
-          ← Retour au catalogue
-        </Link>
-      )}
-    </div>
-    </div>
     </main>
   );
 }

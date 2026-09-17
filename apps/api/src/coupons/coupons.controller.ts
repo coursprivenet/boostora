@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post } from "@nestjs/common";
 import { UserRole } from "@prisma/client";
+import { Public } from "../auth/decorators/public.decorator";
 import { Roles } from "../auth/decorators/roles.decorator";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { AuthenticatedUser } from "../auth/strategies/jwt.strategy";
@@ -15,6 +16,13 @@ export class CouponsController {
   @Post("preview")
   preview(@CurrentUser() user: AuthenticatedUser, @Body() dto: PreviewCouponDto) {
     return this.coupons.preview(user.id, dto);
+  }
+
+  /** Public — lets checkout hide the coupon field entirely when there's nothing to redeem. */
+  @Public()
+  @Get("exists")
+  anyExist() {
+    return this.coupons.anyRedeemableExist();
   }
 
   @Roles(UserRole.ADMIN)
