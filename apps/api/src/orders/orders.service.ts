@@ -308,6 +308,32 @@ export class OrdersService {
       orderId: existing.id,
       expiresAt: existing.payment.expiresAt?.toISOString(),
       priceClientXof: existing.priceClientXof.toString(),
+      discountXof: existing.discountXof.toString(),
+      availableOperators: init.availableOperators,
+    };
+  }
+
+  /**
+   * Gives the client the original payment intent back so they can continue an
+   * interrupted checkout. It deliberately never creates another order or intent.
+   */
+  async getPaymentResume(userId: string, orderId: string) {
+    const { order, payment } = await this.getPayableOrderOrThrow(userId, orderId);
+    if (order.orderStatus !== OrderStatus.PENDING_PAYMENT || payment.status !== PaymentStatus.PENDING) {
+      throw new BadRequestException("Cette commande ne peut plus être reprise pour le paiement");
+    }
+
+    const init = payment.rawInitResponse as { availableOperators?: unknown } | null;
+    if (!init?.availableOperators) {
+      throw new BadRequestException("Les moyens de paiement de cette commande sont indisponibles");
+    }
+
+    return {
+      orderId: order.id,
+      catalogServiceId: order.catalogServiceId,
+      expiresAt: payment.expiresAt?.toISOString(),
+      priceClientXof: order.priceClientXof.toString(),
+      discountXof: order.discountXof.toString(),
       availableOperators: init.availableOperators,
     };
   }

@@ -75,42 +75,58 @@ export default function DashboardPage() {
               ? Math.max(0, order.quantity - order.remains)
               : null;
           const percent = delivered != null ? Math.min(100, (delivered / order.quantity) * 100) : null;
+          const canResumePayment =
+            order.orderStatus === "PENDING_PAYMENT" &&
+            order.payment?.status === "PENDING" &&
+            (!order.payment.expiresAt || new Date(order.payment.expiresAt).getTime() > Date.now());
 
           return (
-            <Link
+            <div
               key={order.id}
-              href={`/dashboard/orders/${order.id}`}
               className="rounded-xl2 border border-ink-100 bg-white p-4 shadow-soft hover:shadow-card"
             >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-ink-900">{order.catalogService.name}</p>
-                  <p className="mt-0.5 text-sm text-ink-400">
-                    {order.quantity.toLocaleString("fr-FR")} unités ·{" "}
-                    {new Date(order.createdAt).toLocaleDateString("fr-FR")}
-                  </p>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className="font-medium text-ink-900">{formatXof(order.priceClientXof)}</span>
-                  <StatusBadge status={order.orderStatus} audience="client" />
-                </div>
-              </div>
-
-              {percent != null && (
-                <div className="mt-3">
-                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-ink-100">
-                    <div
-                      className="h-full rounded-full bg-brand-500"
-                      style={{ width: `${percent}%` }}
-                    />
+              <Link href={`/dashboard/orders/${order.id}`} className="block">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-ink-900">{order.catalogService.name}</p>
+                    <p className="mt-0.5 text-sm text-ink-400">
+                      {order.quantity.toLocaleString("fr-FR")} unités ·{" "}
+                      {new Date(order.createdAt).toLocaleDateString("fr-FR")}
+                    </p>
                   </div>
-                  <p className="mt-1 text-xs text-ink-400">
-                    {delivered!.toLocaleString("fr-FR")} / {order.quantity.toLocaleString("fr-FR")} livrés
-                    ({Math.round(percent)}%)
-                  </p>
+                  <div className="flex items-center gap-4">
+                    <span className="font-medium text-ink-900">{formatXof(order.priceClientXof)}</span>
+                    <StatusBadge status={order.orderStatus} audience="client" />
+                  </div>
+                </div>
+
+                {percent != null && (
+                  <div className="mt-3">
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-ink-100">
+                      <div
+                        className="h-full rounded-full bg-brand-500"
+                        style={{ width: `${percent}%` }}
+                      />
+                    </div>
+                    <p className="mt-1 text-xs text-ink-400">
+                      {delivered!.toLocaleString("fr-FR")} / {order.quantity.toLocaleString("fr-FR")} livrés
+                      ({Math.round(percent)}%)
+                    </p>
+                  </div>
+                )}
+              </Link>
+
+              {canResumePayment && (
+                <div className="mt-4 border-t border-ink-100 pt-3">
+                  <Link
+                    href={`/checkout/${order.catalogService.id}?resume=${order.id}`}
+                    className="inline-flex rounded-lg bg-ink-900 px-4 py-2 text-sm font-semibold text-brand-500 transition-colors hover:bg-brand-500 hover:text-ink-900"
+                  >
+                    Continuer le paiement →
+                  </Link>
                 </div>
               )}
-            </Link>
+            </div>
           );
         })}
       </div>

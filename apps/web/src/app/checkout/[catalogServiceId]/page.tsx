@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, FormEvent } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useRequireAuth } from "@/lib/use-require-auth";
 import { api, ApiError } from "@/lib/api";
@@ -74,6 +74,8 @@ type Step =
   | { kind: "success"; transactionId: string }
   | { kind: "pending"; orderId: string };
 
+type PaymentResume = CreateOrderResponse & { catalogServiceId: string };
+
 const STEP_INDEX: Record<Step["kind"], number> = {
   form: 0,
   operator: 1,
@@ -115,6 +117,8 @@ function StepIndicator({ current }: { current: number }) {
 
 export default function CheckoutPage() {
   const { catalogServiceId } = useParams<{ catalogServiceId: string }>();
+  const searchParams = useSearchParams();
+  const resumeOrderId = searchParams.get("resume");
   const { token, loading: authLoading } = useRequireAuth();
   const router = useRouter();
 
@@ -179,6 +183,33 @@ export default function CheckoutPage() {
       .then((r) => setCouponsExist(r.exists))
       .catch(() => setCouponsExist(false));
   }, [catalogServiceId]);
+
+  // A resumed checkout uses the payment intent originally opened for this order. It
+  // cannot silently create a new order, and the API rejects expired/paid intents.
+  useEffect(() => {
+    if (!token || !resumeOrderId) return;
+    let cancelled = false;
+
+    api
+      .get<PaymentResume>(`/orders/${resumeOrderId}/payment/resume`, token)
+      .then((resume) => {
+        if (cancelled) return;
+        if (resume.catalogServiceId !== catalogServiceId) {
+          router.replace(`/checkout/${resume.catalogServiceId}?resume=${resume.orderId}`);
+          return;
+        }
+        setStep({ kind: "operator", created: resume });
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(err instanceof ApiError ? err.message : "Impossible de reprendre ce paiement");
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [catalogServiceId, resumeOrderId, router, token]);
 
   // Live price as the client drags the slider or types a quantity — debounced so dragging
   // doesn't fire a request per pixel, and stale responses (slow request overtaken by a

@@ -99,7 +99,7 @@ export interface OrderSummary {
   completedAt: string | null;
   startCount: number | null;
   remains: number | null;
-  catalogService: { name: string; description: string | null };
+  catalogService: { id: string; name: string; description: string | null };
   payment: {
     status: string;
     expiresAt: string | null;

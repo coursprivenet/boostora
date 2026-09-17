@@ -47,6 +47,12 @@ export class OrdersController {
     return this.orders.getOneMine(user.id, id);
   }
 
+  /** Reopens the payment step for an unpaid, non-expired order without creating a duplicate. */
+  @Get(":id/payment/resume")
+  resumePayment(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string) {
+    return this.orders.getPaymentResume(user.id, id);
+  }
+
   // Each attempt can hit the real Yengapay API — cap how fast one account can spam it.
   @Throttle({ default: { limit: 15, ttl: 60_000 } })
   @Post()
