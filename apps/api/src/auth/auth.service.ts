@@ -38,9 +38,9 @@ export class AuthService {
       data: { email: dto.email, phone: dto.phone, passwordHash },
     });
 
-    // Fire-and-forget, same as every other email in this app — a Resend hiccup must
-    // never block registration. Verification is not required to log in or order today.
-    void this.sendVerificationEmail(user.id, user.email);
+    // EmailService handles and logs delivery failures internally. Awaiting it is necessary
+    // on Vercel serverless: fire-and-forget work can be stopped once this request returns.
+    await this.sendVerificationEmail(user.id, user.email);
 
     return this.buildAuthResponse(user.id, user.email, user.role);
   }
@@ -89,7 +89,9 @@ export class AuthService {
       "Tu as demandé à réinitialiser ton mot de passe Wassago. Ce lien expire dans 30 minutes. Si tu n'es pas à l'origine de cette demande, ignore cet email.",
       `/reset-password?token=${rawToken}`,
     );
-    void this.email.send(user.email, "Réinitialisation de mot de passe — Wassago", html);
+    // Do not fire-and-forget here: a serverless invocation may end immediately after the
+    // HTTP response and abort the Resend request before it is sent.
+    await this.email.send(user.email, "Réinitialisation de mot de passe — Wassago", html);
   }
 
   async resetPassword(dto: ResetPasswordDto) {
@@ -207,7 +209,7 @@ export class AuthService {
   async resendVerificationEmail(userId: string) {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
     if (user.emailVerifiedAt) return;
-    void this.sendVerificationEmail(user.id, user.email);
+    await this.sendVerificationEmail(user.id, user.email);
   }
 
   private buildAuthResponse(id: string, email: string, role: string) {
