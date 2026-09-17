@@ -179,11 +179,13 @@ export default function OrderDetailPage() {
           </div>
 
           <div className="flex items-start justify-between border-b-2 border-ink-900 pb-4">
-            <div>
-              <p className="flex items-center gap-2 text-xl font-bold text-ink-900">
-                <span className="h-3 w-3 rounded-sm bg-brand-500 print:hidden" />
-                Wassago
-              </p>
+            <div className="min-w-0">
+              {/* eslint-disable-next-line @next/next/no-img-element -- brand logo is a static public asset and must print with the receipt */}
+              <img
+                src="/brand/wassago-logo-horizontal.png"
+                alt="Wassago — Grandir ensemble"
+                className="h-10 w-auto max-w-full object-contain print:h-9"
+              />
               <p className="mt-1 text-xs text-ink-400">Reçu de paiement</p>
             </div>
             {order.paidAt && (
