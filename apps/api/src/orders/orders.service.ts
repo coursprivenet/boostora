@@ -431,6 +431,12 @@ export class OrdersService {
             // it with a different value, but operatorTransactionId is only ever known here.
             transactionId: payment.transactionId ?? webhookBody.transId,
             operatorTransactionId: webhookBody.paymentSourceTransactionID,
+            // Same gap as transactionId: a payment that settles asynchronously (any ONE_STEP/
+            // USSD flow, or a TWO_STEP payment Yengapay confirms after the request returns)
+            // never goes through the sync /pay branch that used to be the only place feesXof
+            // was written — netMarginXof stayed permanently null ("—" in the admin table) for
+            // every one of those, not just a display glitch on one order.
+            feesXof: payment.feesXof ?? webhookBody.paymentFees,
           },
         }),
         this.prisma.order.update({
