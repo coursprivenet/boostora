@@ -39,13 +39,42 @@ export function Navbar() {
     return () => clearInterval(interval);
   }, [token]);
 
+  const notificationsLink = (
+    <Link
+      href="/dashboard/notifications"
+      className="relative flex h-10 w-10 items-center justify-center rounded-full text-ink-500 transition-colors hover:bg-brand-100 hover:text-ink-900"
+      aria-label="Notifications"
+    >
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+      </svg>
+      {unreadCount > 0 && (
+        <span className="absolute right-0 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-semibold text-white">
+          {unreadCount > 9 ? "9+" : unreadCount}
+        </span>
+      )}
+    </Link>
+  );
+
   return (
-    <header className="print:hidden border-b-2 border-ink-900 bg-white/90 backdrop-blur">
+    <header className="print:hidden border-b border-ink-200 bg-white/90 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
         <Link href="/" className="flex items-center gap-2 text-lg font-bold tracking-tight text-ink-900">
-          <span className="h-3 w-3 rounded-sm bg-brand-500" />
-          Wassago
+          {/* eslint-disable-next-line @next/next/no-img-element -- brand mark is a static public asset */}
+          <img src="/brand/wassago-mark.png" alt="" className="h-8 w-8 object-contain" />
+          <span>Wassago</span>
         </Link>
+        {!loading && user && <div className="lg:hidden">{notificationsLink}</div>}
         <nav className="hidden items-center gap-6 text-sm font-medium text-ink-600 lg:flex">
           <Link href="/" className={linkClass("/")}>
             Accueil
@@ -73,32 +102,7 @@ export function Navbar() {
               Admin
             </Link>
           )}
-          {!loading && user && (
-            <Link
-              href="/dashboard/notifications"
-              className="relative flex items-center text-ink-500 hover:text-ink-900"
-              aria-label="Notifications"
-            >
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
-                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-              </svg>
-              {unreadCount > 0 && (
-                <span className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-semibold text-white">
-                  {unreadCount > 9 ? "9+" : unreadCount}
-                </span>
-              )}
-            </Link>
-          )}
+          {!loading && user && notificationsLink}
           {!loading && !user && (
             <>
               <Link href="/login" className={linkClass("/login")}>

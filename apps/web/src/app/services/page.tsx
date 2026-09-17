@@ -47,6 +47,7 @@ export default function ServicesPage() {
   const [refillOnly, setRefillOnly] = useState(false);
   const [sort, setSort] = useState<"default" | "price-asc" | "price-desc">("default");
   const [page, setPage] = useState(1);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   useEffect(() => {
     api
@@ -113,6 +114,48 @@ export default function ServicesPage() {
 
   const selectClass =
     "mt-1.5 w-full rounded-lg border border-ink-200 px-2.5 py-2 text-sm text-ink-900 focus:outline-none focus:ring-2 focus:ring-brand-400";
+  const activeFilterCount = [typeFilter, targetingFilter !== "all", refillOnly, sort !== "default"].filter(Boolean).length;
+  const filterControls = (
+    <div className="rounded-xl2 border border-ink-200 bg-white p-4 shadow-[0_3px_12px_rgba(10,11,15,0.04)] lg:border-2 lg:border-ink-900 lg:shadow-none">
+      <div className="flex items-center gap-1.5">
+        <span className="text-xs font-semibold uppercase tracking-wide text-ink-400">Type</span>
+        <Tooltip text="Le type de service (Abonnés, J'aime, Vues, Commentaires, Lives...), croisé avec le réseau choisi en haut." />
+      </div>
+      <select value={typeFilter ?? ""} onChange={(e) => setTypeFilter(e.target.value || null)} className={selectClass}>
+        <option value="">Tous les types</option>
+        {types.map(([t, count]) => <option key={t} value={t}>{t} ({count})</option>)}
+      </select>
+
+      <div className="mt-4 flex items-center gap-1.5">
+        <span className="text-xs font-semibold uppercase tracking-wide text-ink-400">Ciblage</span>
+        <Tooltip text="Certaines offres livrent depuis un mix mondial de comptes, d'autres ciblent un pays précis (souvent plus cher, utile si ton audience doit sembler locale)." />
+      </div>
+      <select value={targetingFilter} onChange={(e) => setTargetingFilter(e.target.value as typeof targetingFilter)} className={selectClass}>
+        <option value="all">Tous</option>
+        <option value="worldwide">Mondial</option>
+        <option value="country">Pays ciblé</option>
+      </select>
+
+      <div className="mt-4">
+        <span className="text-xs font-semibold uppercase tracking-wide text-ink-400">Trier par prix</span>
+        <select value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} className={selectClass}>
+          <option value="default">Par défaut</option>
+          <option value="price-asc">Prix croissant</option>
+          <option value="price-desc">Prix décroissant</option>
+        </select>
+      </div>
+
+      <div className="mt-4 border-t border-ink-100 pt-4">
+        <label className="flex items-start gap-2 text-sm text-ink-700">
+          <input type="checkbox" checked={refillOnly} onChange={(e) => setRefillOnly(e.target.checked)} className="mt-0.5" />
+          <span className="flex items-center gap-1">
+            Avec refill uniquement
+            <Tooltip text="Le refill est une garantie : si le nombre livré baisse après coup (compte suspendu, purge de la plateforme...), le service le remplace gratuitement pendant une période donnée. Sans refill, aucun remplacement n'est offert." />
+          </span>
+        </label>
+      </div>
+    </div>
+  );
 
   return (
     <main>
@@ -168,66 +211,19 @@ export default function ServicesPage() {
         {services !== null && services.length > 0 && (
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-[240px_1fr]">
             <aside className="lg:sticky lg:top-4 lg:self-start">
-              <div className="rounded-xl2 border-2 border-ink-900 bg-white p-4">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-ink-400">Type</span>
-                  <Tooltip text="Le type de service (Abonnés, J'aime, Vues, Commentaires, Lives...), croisé avec le réseau choisi en haut." />
-                </div>
-                <select
-                  value={typeFilter ?? ""}
-                  onChange={(e) => setTypeFilter(e.target.value || null)}
-                  className={selectClass}
+              <div className="lg:hidden">
+                <button
+                  type="button"
+                  onClick={() => setFiltersOpen((open) => !open)}
+                  aria-expanded={filtersOpen}
+                  className="flex w-full items-center justify-between rounded-xl2 border-2 border-ink-900 bg-white px-4 py-3 text-sm font-semibold text-ink-900"
                 >
-                  <option value="">Tous les types</option>
-                  {types.map(([t, count]) => (
-                    <option key={t} value={t}>
-                      {t} ({count})
-                    </option>
-                  ))}
-                </select>
-
-                <div className="mt-4 flex items-center gap-1.5">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-ink-400">Ciblage</span>
-                  <Tooltip text="Certaines offres livrent depuis un mix mondial de comptes, d'autres ciblent un pays précis (souvent plus cher, utile si ton audience doit sembler locale)." />
-                </div>
-                <select
-                  value={targetingFilter}
-                  onChange={(e) => setTargetingFilter(e.target.value as typeof targetingFilter)}
-                  className={selectClass}
-                >
-                  <option value="all">Tous</option>
-                  <option value="worldwide">Mondial</option>
-                  <option value="country">Pays ciblé</option>
-                </select>
-
-                <div className="mt-4">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-ink-400">Trier par prix</span>
-                  <select
-                    value={sort}
-                    onChange={(e) => setSort(e.target.value as typeof sort)}
-                    className={selectClass}
-                  >
-                    <option value="default">Par défaut</option>
-                    <option value="price-asc">Prix croissant</option>
-                    <option value="price-desc">Prix décroissant</option>
-                  </select>
-                </div>
-
-                <div className="mt-4 border-t border-ink-100 pt-4">
-                  <label className="flex items-start gap-2 text-sm text-ink-700">
-                    <input
-                      type="checkbox"
-                      checked={refillOnly}
-                      onChange={(e) => setRefillOnly(e.target.checked)}
-                      className="mt-0.5"
-                    />
-                    <span className="flex items-center gap-1">
-                      Avec refill uniquement
-                      <Tooltip text="Le refill est une garantie : si le nombre livré baisse après coup (compte suspendu, purge de la plateforme...), le service le remplace gratuitement pendant une période donnée. Sans refill, aucun remplacement n'est offert." />
-                    </span>
-                  </label>
-                </div>
+                  <span>Filtres et tri{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}</span>
+                  <span aria-hidden="true">{filtersOpen ? "−" : "+"}</span>
+                </button>
+                {filtersOpen && <div className="mt-3">{filterControls}</div>}
               </div>
+              <div className="hidden lg:block">{filterControls}</div>
             </aside>
 
             <div>

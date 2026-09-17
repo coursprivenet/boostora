@@ -9,6 +9,10 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 export const metadata: Metadata = {
   title: "Wassago",
   description: "Marketing et croissance réseaux sociaux",
+  icons: {
+    icon: "/brand/wassago-mark.png",
+    apple: "/brand/wassago-mark.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

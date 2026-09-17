@@ -8,28 +8,40 @@ function unitLabel(item: CatalogItem) {
   return `/ ${item.referenceQuantity.toLocaleString("fr-FR")}`;
 }
 
+// Supplier labels are sometimes entered in English. Translate only the unambiguous
+// service words here; the underlying catalog data and commercial conditions stay intact.
+function displayName(name: string) {
+  return name
+    .replace(/\bSubscribers?\b/gi, "Abonnés")
+    .replace(/\bFollowers?\b/gi, "Abonnés")
+    .replace(/\bLikes?\b/gi, "J'aime")
+    .replace(/\bViews?\b/gi, "Vues")
+    .replace(/\bComments?\b/gi, "Commentaires")
+    .replace(/\bShares?\b/gi, "Partages");
+}
+
 export function ServiceCard({ item }: { item: CatalogItem }) {
   return (
-    <div className="flex flex-col justify-between rounded-xl2 border-2 border-ink-900 bg-white p-5 transition-transform hover:-translate-y-0.5">
+    <div className="flex flex-col justify-between rounded-xl2 border border-ink-200 bg-white p-5 shadow-[0_3px_12px_rgba(10,11,15,0.04)] transition-all hover:-translate-y-0.5 hover:border-ink-900 hover:shadow-card">
       <div>
-        <span className="inline-flex items-center rounded-full border-2 border-ink-900 bg-brand-500 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ink-900">
+        <span className="inline-flex items-center rounded-full bg-brand-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-ink-900">
           {item.platform}
         </span>
-        <h3 className="mt-2 text-base font-semibold text-ink-900">{item.name}</h3>
+        <h3 className="mt-3 line-clamp-2 text-base font-semibold leading-snug text-ink-900">{displayName(item.name)}</h3>
         {item.description && (
           <p className="mt-1.5 line-clamp-2 text-sm text-ink-500">{item.description}</p>
         )}
         {item.riskWarning && (
-          <p className="mt-2 flex items-start gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800">
-            <span>⚠ {item.riskWarning}</span>
+          <p className="mt-3 flex items-start gap-1.5 rounded-lg bg-amber-50 px-2.5 py-2 text-xs leading-relaxed text-amber-800">
+            <span>⚠️ {item.riskWarning}</span>
             <Tooltip text="Si le nombre livré baisse après coup (compte suspendu, purge de la plateforme, etc.), ce service ne recompense pas automatiquement — et aucun chiffre n'est garanti à 100%, les réseaux sociaux gardent le contrôle final." />
           </p>
         )}
-        <p className="mt-3 text-xs text-ink-400">
+        <p className="mt-4 text-xs text-ink-400">
           Min {item.minQuantity.toLocaleString("fr-FR")} · Max {item.maxQuantity.toLocaleString("fr-FR")}
         </p>
       </div>
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t border-ink-100 pt-4">
         <span className="flex min-w-0 items-center gap-1 text-lg font-semibold text-ink-900">
           {formatXof(item.priceClientXof)}
           <span className="text-xs font-normal text-ink-400">{unitLabel(item)}</span>

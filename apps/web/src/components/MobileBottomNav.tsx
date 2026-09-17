@@ -61,17 +61,7 @@ export function MobileBottomNav() {
   if (loading) return null;
 
   return (
-    <nav className="print:hidden fixed inset-x-0 bottom-0 z-40 flex items-end justify-around bg-white px-2 pb-[env(safe-area-inset-bottom)] pt-1.5 shadow-[0_-2px_10px_rgba(0,0,0,0.06)] lg:hidden">
-      {/* Top border with a circular notch cut out where the center button pops through —
-       * a plain border-t would draw a straight line across/behind the button, which read
-       * as an ugly seam where the round button meets the flat line. */}
-      <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-ink-900"
-        style={{
-          maskImage: "radial-gradient(circle 34px at 50% 0%, transparent 99%, black 100%)",
-          WebkitMaskImage: "radial-gradient(circle 34px at 50% 0%, transparent 99%, black 100%)",
-        }}
-      />
+    <nav className="print:hidden fixed inset-x-0 bottom-0 z-40 flex h-[4.75rem] items-end justify-around rounded-t-[1.5rem] bg-white px-2 pb-[env(safe-area-inset-bottom)] pt-2 shadow-[0_-12px_28px_rgba(10,11,15,0.14)] lg:hidden">
       {items.map(({ href, label, Icon, center }) => {
         const active = pathname === href;
         if (center) {
@@ -79,14 +69,14 @@ export function MobileBottomNav() {
             <Link
               key={label}
               href={href}
-              className="-mt-5 flex flex-col items-center gap-0.5"
+              className="relative z-10 -mt-10 flex min-w-0 flex-1 flex-col items-center gap-1"
             >
               <span
-                className={`flex h-14 w-14 items-center justify-center rounded-full border-2 border-ink-900 bg-brand-500 shadow-card ${active ? "ring-4 ring-brand-300" : ""}`}
+                className={`flex h-16 w-16 items-center justify-center rounded-[1.35rem] border-[3px] border-white bg-brand-500 shadow-[0_9px_22px_rgba(10,11,15,0.28)] ring-1 ring-ink-900/15 transition-transform ${active ? "scale-105 ring-4 ring-brand-200" : ""}`}
               >
                 <Icon className="h-7 w-7 text-ink-900" />
               </span>
-              <span className="text-[10px] font-semibold text-ink-900">{label}</span>
+              <span className="text-[11px] font-bold text-ink-900">{label}</span>
             </Link>
           );
         }
@@ -94,12 +84,12 @@ export function MobileBottomNav() {
           <Link
             key={label}
             href={href}
-            className={`flex flex-col items-center gap-0.5 px-2 py-1.5 ${active ? "text-ink-900" : "text-ink-400"}`}
+            className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 py-1.5 ${active ? "text-ink-900" : "text-ink-400"}`}
           >
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white">
+            <span className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors ${active ? "bg-brand-100" : "bg-transparent"}`}>
               <Icon className="h-5 w-5" />
             </span>
-            <span className="text-[10px] font-medium">{label}</span>
+            <span className="truncate text-[11px] font-medium">{label}</span>
           </Link>
         );
       })}
