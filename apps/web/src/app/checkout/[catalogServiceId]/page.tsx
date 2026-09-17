@@ -135,6 +135,9 @@ export default function CheckoutPage() {
 
   const [dripfeedEnabled, setDripfeedEnabled] = useState(false);
   const [dripfeedRuns, setDripfeedRuns] = useState(5);
+  // Keep the draft text separate from the numeric value: on touch devices a controlled
+  // number input must be allowed to be empty while its current value is being replaced.
+  const [dripfeedRunsInput, setDripfeedRunsInput] = useState("5");
   const [dripfeedDays, setDripfeedDays] = useState(3);
   const previewRequestId = useRef(0);
 
@@ -251,6 +254,17 @@ export default function CheckoutPage() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mandatoryDays, item?.dripfeedSupported]);
+
+  useEffect(() => {
+    setDripfeedRunsInput(String(dripfeedRuns));
+  }, [dripfeedRuns]);
+
+  function normalizeDripfeedRuns() {
+    const max = item?.dripfeedMaxRuns ?? 1000;
+    const parsed = Number(dripfeedRunsInput);
+    const valid = Number.isFinite(parsed) ? parsed : 2;
+    setDripfeedRuns(Math.min(max, Math.max(2, Math.round(valid))));
+  }
 
   function computedIntervalMinutes(): number | null {
     if (!item || !dripfeedEnabled) return null;
@@ -523,8 +537,16 @@ export default function CheckoutPage() {
                             type="number"
                             min={2}
                             max={item.dripfeedMaxRuns ?? 1000}
-                            value={dripfeedRuns}
-                            onChange={(e) => setDripfeedRuns(Math.max(2, Number(e.target.value)))}
+                            value={dripfeedRunsInput}
+                            inputMode="numeric"
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              setDripfeedRunsInput(value);
+                              if (value !== "" && Number.isFinite(Number(value))) {
+                                setDripfeedRuns(Number(value));
+                              }
+                            }}
+                            onBlur={normalizeDripfeedRuns}
                             className="w-28 rounded-lg border border-ink-200 px-2 py-1.5 text-sm"
                           />
                         </label>
