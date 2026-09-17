@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useRequireAuth } from "@/lib/use-require-auth";
+import { useAuth } from "@/lib/auth-context";
 import { api, ApiError } from "@/lib/api";
 import { OrderSummary } from "@/lib/types";
 import { formatXof } from "@/lib/format";
@@ -12,9 +13,18 @@ import { Button } from "@/components/Button";
 
 const ACTIVE_STATUSES = new Set(["QUEUED", "PROCESSING", "SUBMITTING", "RETRY_SUBMIT"]);
 
+const OPERATOR_NAMES: Record<string, string> = {
+  ORANGE: "Orange Money",
+  MOOV: "Moov Money",
+  TELECEL: "Telecel Money",
+  SANKM: "Sank Money",
+  CORISM: "Coris Money",
+};
+
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { token, loading: authLoading } = useRequireAuth();
+  const { user } = useAuth();
   const [order, setOrder] = useState<OrderSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
@@ -75,7 +85,7 @@ export default function OrderDetailPage() {
   const isRefunded = order.payment?.status === "REFUNDED";
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-10">
+    <main className="mx-auto max-w-2xl px-6 py-10 print:max-w-none print:p-0">
       <Link
         href="/dashboard"
         className="mb-6 inline-block text-sm text-ink-500 hover:underline print:hidden"
@@ -83,7 +93,7 @@ export default function OrderDetailPage() {
         ← Mes commandes
       </Link>
 
-      <div className="rounded-xl2 border border-ink-100 bg-white p-6 shadow-soft">
+      <div className="rounded-xl2 border border-ink-100 bg-white p-6 shadow-soft print:hidden">
         <div className="mb-4 flex items-start justify-between">
           <div>
             <h1 className="text-xl font-semibold text-ink-900">{order.catalogService.name}</h1>
@@ -153,8 +163,8 @@ export default function OrderDetailPage() {
       </div>
 
       {isPaid && order.payment && (
-        <div className="mt-6 rounded-xl2 border border-ink-100 bg-white p-6 shadow-soft print:border-0 print:shadow-none">
-          <div className="mb-4 flex items-center justify-between print:hidden">
+        <div className="mt-6 rounded-xl2 border border-ink-100 bg-white p-8 shadow-soft print:mt-0 print:border-0 print:p-0 print:shadow-none">
+          <div className="mb-6 flex items-center justify-between print:hidden">
             <h2 className="text-sm font-semibold text-ink-900">
               Reçu de paiement
               {isRefunded && (
@@ -168,72 +178,68 @@ export default function OrderDetailPage() {
             </Button>
           </div>
 
-          <p className="mb-4 hidden text-lg font-semibold text-ink-900 print:block">Boostora — Reçu de paiement</p>
-
-          <dl className="grid grid-cols-2 gap-4 text-sm">
+          <div className="flex items-start justify-between border-b-2 border-ink-900 pb-4">
             <div>
-              <dt className="text-ink-400">Référence Boostora</dt>
-              <dd className="font-mono text-xs font-medium text-ink-900">{order.payment.reference}</dd>
+              <p className="flex items-center gap-2 text-xl font-bold text-ink-900">
+                <span className="h-3 w-3 rounded-sm bg-brand-500 print:hidden" />
+                Boostora
+              </p>
+              <p className="mt-1 text-xs text-ink-400">Reçu de paiement</p>
             </div>
-            <div>
-              <dt className="text-ink-400">Montant payé</dt>
-              <dd className="font-medium text-ink-900">{formatXof(order.payment.amountXof)}</dd>
-            </div>
-            {order.payment.operatorCode && (
-              <div>
-                <dt className="text-ink-400">Opérateur</dt>
-                <dd className="font-medium text-ink-900">{order.payment.operatorCode}</dd>
-              </div>
-            )}
             {order.paidAt && (
-              <div>
-                <dt className="text-ink-400">Payé le</dt>
-                <dd className="font-medium text-ink-900">
-                  {new Date(order.paidAt).toLocaleString("fr-FR")}
-                </dd>
-              </div>
+              <p className="text-sm text-ink-500">{new Date(order.paidAt).toLocaleDateString("fr-FR")}</p>
             )}
-            {order.payment.transactionId && (
-              <div>
-                <dt className="text-ink-400">ID transaction Yengapay</dt>
-                <dd className="font-mono text-xs font-medium text-ink-900">
-                  {order.payment.transactionId}
-                </dd>
-              </div>
-            )}
-            {order.payment.operatorTransactionId && (
-              <div>
-                <dt className="text-ink-400">ID transaction opérateur</dt>
-                <dd className="font-mono text-xs font-medium text-ink-900">
-                  {order.payment.operatorTransactionId}
-                </dd>
-              </div>
-            )}
-            {isRefunded && order.payment.refundedAt && (
-              <>
-                <div>
-                  <dt className="text-ink-400">Remboursé le</dt>
-                  <dd className="font-medium text-ink-900">
-                    {new Date(order.payment.refundedAt).toLocaleString("fr-FR")}
-                  </dd>
-                </div>
-                {order.payment.refundAmountXof && (
-                  <div>
-                    <dt className="text-ink-400">Montant remboursé</dt>
-                    <dd className="font-medium text-ink-900">
-                      {formatXof(order.payment.refundAmountXof)}
-                    </dd>
-                  </div>
-                )}
-                {order.payment.refundReason && (
-                  <div className="col-span-2">
-                    <dt className="text-ink-400">Motif</dt>
-                    <dd className="font-medium text-ink-900">{order.payment.refundReason}</dd>
-                  </div>
-                )}
-              </>
-            )}
-          </dl>
+          </div>
+
+          <div className="mt-4">
+            <p className="text-xs uppercase tracking-wide text-ink-400">Client</p>
+            <p className="text-sm font-medium text-ink-900">{user?.email}</p>
+          </div>
+
+          <table className="mt-6 w-full text-sm">
+            <thead>
+              <tr className="border-b border-ink-200 text-left text-xs uppercase tracking-wide text-ink-400">
+                <th className="pb-2 font-medium">Description</th>
+                <th className="pb-2 text-right font-medium">Quantité</th>
+                <th className="pb-2 text-right font-medium">Montant</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="border-b border-ink-100">
+                <td className="py-3 font-medium text-ink-900">{order.catalogService.name}</td>
+                <td className="py-3 text-right text-ink-600">{order.quantity.toLocaleString("fr-FR")}</td>
+                <td className="py-3 text-right text-ink-900">{formatXof(order.payment.amountXof)}</td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colSpan={2} className="pt-3 text-right font-semibold text-ink-900">
+                  Total payé
+                </td>
+                <td className="pt-3 text-right text-lg font-bold text-ink-900">
+                  {formatXof(order.payment.amountXof)}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+
+          {order.payment.operatorCode && (
+            <p className="mt-4 text-xs text-ink-400">
+              Payé via {OPERATOR_NAMES[order.payment.operatorCode] ?? order.payment.operatorCode}
+            </p>
+          )}
+
+          {isRefunded && (
+            <div className="mt-4 rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
+              <p className="font-semibold">Remboursé{order.payment.refundedAt && ` le ${new Date(order.payment.refundedAt).toLocaleDateString("fr-FR")}`}</p>
+              {order.payment.refundAmountXof && <p>Montant : {formatXof(order.payment.refundAmountXof)}</p>}
+              {order.payment.refundReason && <p>Motif : {order.payment.refundReason}</p>}
+            </div>
+          )}
+
+          <p className="mt-8 border-t border-ink-100 pt-4 text-center text-xs text-ink-400">
+            Merci d&apos;avoir choisi Boostora.
+          </p>
         </div>
       )}
     </main>
