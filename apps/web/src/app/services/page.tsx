@@ -19,6 +19,14 @@ function typeOf(categoryName: string): string {
   return categoryName;
 }
 
+// The most-ordered types lead, regardless of which platform is filtered — everything
+// else follows by how many services exist for it.
+const TYPE_PRIORITY = ["Abonnés", "J'aime", "Commentaires", "Partages"];
+function typePriorityRank(type: string): number {
+  const i = TYPE_PRIORITY.indexOf(type);
+  return i === -1 ? TYPE_PRIORITY.length : i;
+}
+
 const COUNTRY_TOKENS = [
   "Italie", "Espagne", "Brésil", "Turquie", "Inde", "Indonésie", "Allemagne", "Thaïlande",
   "Irak", "Corée", "Égypte", "Vietnam", "Grèce", "Argentine", "Mexique", "États-Unis", "USA",
@@ -64,7 +72,10 @@ export default function ServicesPage() {
       const t = typeOf(s.category.name);
       counts.set(t, (counts.get(t) ?? 0) + 1);
     }
-    return Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
+    return Array.from(counts.entries()).sort((a, b) => {
+      const rankDiff = typePriorityRank(a[0]) - typePriorityRank(b[0]);
+      return rankDiff !== 0 ? rankDiff : b[1] - a[1];
+    });
   }, [services, platformFilter]);
 
   useEffect(() => {
@@ -84,7 +95,11 @@ export default function ServicesPage() {
       list = list.filter((s) => isCountryTargeted(s.name) === (targetingFilter === "country"));
     }
     if (refillOnly) list = list.filter((s) => !s.riskWarning);
-    if (sort !== "default") {
+    if (sort === "default") {
+      list = [...list].sort(
+        (a, b) => typePriorityRank(typeOf(a.category.name)) - typePriorityRank(typeOf(b.category.name)),
+      );
+    } else {
       list = [...list].sort((a, b) => {
         const diff = Number(a.priceClientXof) - Number(b.priceClientXof);
         return sort === "price-asc" ? diff : -diff;
