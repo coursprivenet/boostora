@@ -13,8 +13,8 @@ export class ExchangeRateController {
 
   @Get("current")
   async current() {
-    const rate = await this.service.getCurrentRate();
-    return { rateXofPerUsd: rate.toString() };
+    const rates = await this.service.getCurrentRates();
+    return { rateXofPerUsd: rates.rateXofPerUsd.toString(), costRateXofPerUsd: rates.costRateXofPerUsd.toString() };
   }
 
   @Get("history")
@@ -24,6 +24,6 @@ export class ExchangeRateController {
 
   @Post()
   set(@Body() dto: SetExchangeRateDto, @CurrentUser() user: AuthenticatedUser) {
-    return this.service.setRate(dto.rateXofPerUsd, user.id);
+    return this.service.setRate(dto.rateXofPerUsd, user.id, dto.costRateXofPerUsd);
   }
 }

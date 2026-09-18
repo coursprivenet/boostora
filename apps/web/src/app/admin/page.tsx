@@ -34,15 +34,17 @@ export default function AdminOverviewPage() {
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard label="Chiffre d'affaires" value={formatXof(stats.totalRevenueXof)} />
         <StatCard
-          label="Marge brute"
+          label="Marge catalogue"
           value={formatXof(stats.grossMarginXof)}
-          sub="avant frais Yengapay"
+          sub="majoration configurée"
         />
         <StatCard
-          label="Marge nette"
-          value={formatXof(stats.netMarginXof)}
-          sub="après frais Yengapay"
+          label="Marge de change"
+          value={formatXof(stats.fxMarginXof)}
+          sub="taux commercial − taux d'achat"
         />
+        <StatCard label="Marge cumulée brute" value={formatXof(stats.cumulativeGrossMarginXof)} sub="avant frais de paiement" />
+        <StatCard label="Marge cumulée nette" value={formatXof(stats.cumulativeNetMarginXof)} sub="après frais YengaPay / Crypto" />
         <StatCard label="Utilisateurs" value={String(stats.totalUsers)} />
         <StatCard label="Commandes totales" value={String(stats.totalOrders)} />
         <StatCard label="Commandes payées" value={String(stats.paidOrdersCount)} />

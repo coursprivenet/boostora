@@ -43,10 +43,10 @@ function quantityToSliderPos(quantity: number, min: number, max: number) {
 function sliderMaxFor(itemMax: number) {
   return Math.min(itemMax, 100000);
 }
-// Platform-wide floor: 200 units, even when a provider's own minimum is lower — a
-// service's raw min (sometimes 1, 5, 10...) isn't a real-world useful order size.
+// The supplier's own minimum is the only quantity floor. Payment minimums apply to
+// the total in XOF, not to the number of likes/followers requested.
 function effectiveMinFor(itemMin: number) {
-  return Math.max(itemMin, 200);
+  return itemMin;
 }
 
 /** Bigger orders are more visible as a sudden spike, so they get a longer recommended
@@ -187,6 +187,7 @@ export default function CheckoutPage() {
   const [step, setStep] = useState<Step>({ kind: "form" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const payablePrice = livePrice ? Math.max(Number(livePrice), paymentCountryCode === "OTHER" ? 0 : 100) : null;
 
   async function checkCoupon() {
     if (!token || !item || !couponCode.trim()) return;
@@ -566,12 +567,15 @@ export default function CheckoutPage() {
                     <span className="text-sm font-semibold text-ink-900">Total à payer</span>
                     {priceLoading ? (
                       <span className="text-sm text-ink-700">Calcul…</span>
-                    ) : livePrice ? (
-                      <span className="text-xl font-bold text-ink-900">{formatXof(livePrice)}</span>
+                    ) : payablePrice != null ? (
+                      <span className="text-xl font-bold text-ink-900">{formatXof(payablePrice)}</span>
                     ) : (
                       <span className="text-sm text-rose-700">Quantité invalide</span>
                     )}
                   </div>
+                  {livePrice && Number(livePrice) < 100 && paymentCountryCode !== "OTHER" && (
+                    <p className="mt-2 text-xs text-ink-500">Minimum de paiement Mobile Money : 100 F CFA.</p>
+                  )}
                 </div>
 
                 {mandatoryDays > 0 && !item.dripfeedSupported && (

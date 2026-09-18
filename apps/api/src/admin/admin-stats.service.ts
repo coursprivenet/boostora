@@ -31,16 +31,25 @@ export class AdminStatsService {
     let totalRevenueXof = 0;
     let grossMarginXof = 0;
     let netMarginXof = 0;
+    let fxMarginXof = 0;
+    let cumulativeGrossMarginXof = 0;
+    let cumulativeNetMarginXof = 0;
     const revenueByService = new Map<string, { name: string; count: number; revenueXof: number }>();
 
     for (const order of paidOrders) {
       const price = Number(order.priceClientXof);
       const margin = Number(order.marginXof);
       const fees = order.payment?.feesXof ? Number(order.payment.feesXof) : 0;
+      const actualProviderCost = Number(order.costProviderUsd) * Number(order.costFxRateUsed);
+      const fxMargin = Number(order.costProviderUsd) * (Number(order.fxRateUsed) - Number(order.costFxRateUsed));
+      const cumulativeGross = price - actualProviderCost;
 
       totalRevenueXof += price;
       grossMarginXof += margin;
       netMarginXof += margin - fees;
+      fxMarginXof += fxMargin;
+      cumulativeGrossMarginXof += cumulativeGross;
+      cumulativeNetMarginXof += cumulativeGross - fees;
 
       const key = order.catalogServiceId;
       const entry = revenueByService.get(key) ?? {
@@ -66,6 +75,9 @@ export class AdminStatsService {
       totalRevenueXof,
       grossMarginXof,
       netMarginXof,
+      fxMarginXof,
+      cumulativeGrossMarginXof,
+      cumulativeNetMarginXof,
       topServices,
     };
   }

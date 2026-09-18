@@ -162,6 +162,9 @@ model ExchangeRate {
   id        String   @id @default(cuid())
   /// XOF per 1 USD, set manually by an admin.
   rateXofPerUsd Decimal @db.Decimal(12, 4)
+  /// Actual average XOF cost to acquire 1 USD for the supplier balance. Kept separate
+  /// from the commercial rate so the dashboard can expose the FX cushion explicitly.
+  costRateXofPerUsd Decimal @default(615) @db.Decimal(12, 4)
   setByUserId   String
   effectiveFrom DateTime @default(now())
   createdAt     DateTime @default(now())
@@ -182,6 +185,7 @@ model Order {
   priceClientXof Decimal @db.Decimal(12, 2)
   costProviderUsd Decimal @db.Decimal(12, 4)
   fxRateUsed     Decimal @db.Decimal(12, 4)
+  costFxRateUsed Decimal @default(615) @db.Decimal(12, 4)
   marginXof      Decimal @db.Decimal(12, 2)
 
   couponId    String?

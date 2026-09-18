@@ -12,6 +12,8 @@ export interface CryptomusPaymentWebhook {
   status: "paid" | "paid_over" | "wrong_amount" | "cancel" | "fail" | string;
   is_final: boolean;
   merchant_amount?: string;
+  payment_amount?: string;
+  payment_amount_usd?: string;
   commission?: string;
   txid?: string | null;
   network?: string;

@@ -7,7 +7,7 @@ import { ServiceCard } from "@/components/ServiceCard";
 import { Tooltip } from "@/components/Tooltip";
 
 const PAGE_SIZE = 20;
-const PLATFORM_PREFIXES = ["Instagram", "TikTok", "Facebook", "YouTube"];
+const PLATFORM_PREFIXES = ["Instagram", "TikTok", "Facebook", "YouTube", "Spotify", "X", "WhatsApp", "Snapchat", "LinkedIn", "Telegram"];
 
 // Category names are stored as "<Plateforme> <Type>" in French (e.g. "Instagram Abonnés").
 // Stripping the known platform prefix gives the type on its own, which is what lets a

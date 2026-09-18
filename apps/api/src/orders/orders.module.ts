@@ -6,6 +6,7 @@ import { PanelFollowsModule } from "../panelfollows/panelfollows.module";
 import { AuditLogModule } from "../audit-log/audit-log.module";
 import { CouponsModule } from "../coupons/coupons.module";
 import { NotificationsModule } from "../notifications/notifications.module";
+import { ExchangeRateModule } from "../exchange-rate/exchange-rate.module";
 import { OrdersService } from "./orders.service";
 import { OrdersController } from "./orders.controller";
 import { ProviderReconciliationService } from "./provider-reconciliation.service";
@@ -19,6 +20,7 @@ import { ProviderReconciliationService } from "./provider-reconciliation.service
     AuditLogModule,
     CouponsModule,
     NotificationsModule,
+    ExchangeRateModule,
   ],
   providers: [OrdersService, ProviderReconciliationService],
   controllers: [OrdersController],

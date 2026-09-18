@@ -20,6 +20,7 @@ import { extractDripfeedLimits } from "../panelfollows/dripfeed.util";
 import { AuditLogService } from "../audit-log/audit-log.service";
 import { CouponsService } from "../coupons/coupons.service";
 import { NotificationsService } from "../notifications/notifications.service";
+import { ExchangeRateService } from "../exchange-rate/exchange-rate.service";
 import { CreateOrderDto } from "./dto/create-order.dto";
 import { SendOtpDto } from "./dto/send-otp.dto";
 import { ConfirmPaymentDto } from "./dto/confirm-payment.dto";
@@ -51,6 +52,7 @@ export class OrdersService {
     private readonly auditLog: AuditLogService,
     private readonly coupons: CouponsService,
     private readonly notifications: NotificationsService,
+    private readonly exchangeRate: ExchangeRateService,
   ) {}
 
   async listMine(userId: string) {
@@ -165,7 +167,10 @@ export class OrdersService {
     const duplicate = await this.findReusableDuplicate(userId, dto);
     if (duplicate) return duplicate;
 
-    const priced = await this.catalog.computeOrderPrice(dto.catalogServiceId, dto.quantity);
+    const [priced, costFxRate] = await Promise.all([
+      this.catalog.computeOrderPrice(dto.catalogServiceId, dto.quantity),
+      this.exchangeRate.getCurrentCostRate(),
+    ]);
 
     const dripfeedRequested = dto.dripfeedRuns != null || dto.dripfeedIntervalMinutes != null;
     if (dripfeedRequested) {
@@ -234,8 +239,13 @@ export class OrdersService {
       finalPriceXof = discount.finalPriceXof;
       discountXof = discount.discountXof;
     }
-    // Margin absorbs the discount — it's real money we're giving up, not the provider's.
-    const marginAfterDiscount = priced.marginXof.minus(discountXof);
+    const paymentCountryCode = dto.paymentCountryCode ?? "BF";
+    // Payment floors apply to the amount, not the quantity: a supplier-supported
+    // 10-unit order remains available even when its calculated subtotal is tiny.
+    const paymentFloorXof = paymentCountryCode === "OTHER" ? new Decimal(0) : new Decimal(process.env.YENGAPAY_MIN_AMOUNT_XOF ?? "100");
+    if (finalPriceXof.lt(paymentFloorXof)) finalPriceXof = paymentFloorXof;
+    const actualDiscountXof = Decimal.max(new Decimal(0), priced.priceClientXof.minus(finalPriceXof));
+    const marginAfterDiscount = finalPriceXof.minus(priced.costProviderXof);
 
     const order = await this.prisma.order.create({
       data: {
@@ -246,9 +256,10 @@ export class OrdersService {
         priceClientXof: finalPriceXof.toString(),
         costProviderUsd: priced.costProviderUsd.toString(),
         fxRateUsed: priced.fxRateUsed.toString(),
+        costFxRateUsed: costFxRate.toString(),
         marginXof: marginAfterDiscount.toString(),
         couponId,
-        discountXof: discountXof.toString(),
+        discountXof: actualDiscountXof.toString(),
         termsAcceptedAt: new Date(),
         dripfeedRuns: dto.dripfeedRuns,
         dripfeedIntervalMinutes: dto.dripfeedIntervalMinutes,
@@ -267,7 +278,6 @@ export class OrdersService {
           },
         ],
       };
-      const paymentCountryCode = dto.paymentCountryCode ?? "BF";
       if (paymentCountryCode === "OTHER") {
         const expiresAt = new Date(Date.now() + 30 * 60_000);
         await this.prisma.payment.create({
@@ -283,7 +293,7 @@ export class OrdersService {
           orderId: order.id,
           expiresAt: expiresAt.toISOString(),
           priceClientXof: finalPriceXof.toString(),
-          discountXof: discountXof.toString(),
+          discountXof: actualDiscountXof.toString(),
           availableOperators: [],
         };
       }
@@ -311,7 +321,7 @@ export class OrdersService {
         orderId: order.id,
         expiresAt: init.expiresAt ?? new Date(Date.now() + 30 * 60_000).toISOString(),
         priceClientXof: finalPriceXof.toString(),
-        discountXof: discountXof.toString(),
+        discountXof: actualDiscountXof.toString(),
         availableOperators,
         ...(checkoutUrl ? { checkoutUrl } : {}),
       };
@@ -756,7 +766,10 @@ export class OrdersService {
       return { found: false as const };
     }
     const orderId = webhookBody.order_id.replace(/^crypto-/, "");
-    const payment = await this.prisma.payment.findUnique({ where: { reference: orderId } });
+    const payment = await this.prisma.payment.findUnique({
+      where: { reference: orderId },
+      include: { order: { select: { priceClientXof: true } } },
+    });
     const init = payment?.rawInitResponse as { provider?: string; invoiceId?: string } | null;
     if (!payment || init?.provider !== "CRYPTOMUS" || init.invoiceId !== webhookBody.uuid) {
       this.logger.warn(`Cryptomus webhook does not match a pending invoice=${webhookBody.uuid}`);
@@ -767,10 +780,19 @@ export class OrdersService {
       await this.prisma.$transaction([
         this.prisma.payment.update({
           where: { id: payment.id },
-          data: {
-            status: PaymentStatus.PAID,
-            transactionId: webhookBody.txid ?? webhookBody.uuid,
-            rawWebhookPayload: webhookBody as unknown as object,
+        data: {
+          status: PaymentStatus.PAID,
+          transactionId: webhookBody.txid ?? webhookBody.uuid,
+          // Cryptomus reports the commission in the payer asset, not USD. Convert
+          // its share of the paid crypto amount back to this order's XOF amount.
+          feesXof: webhookBody.commission && webhookBody.payment_amount
+            ? new Decimal(webhookBody.commission)
+                .div(webhookBody.payment_amount)
+                .mul(payment.order.priceClientXof)
+                .toDecimalPlaces(0)
+                .toString()
+            : null,
+          rawWebhookPayload: webhookBody as unknown as object,
           },
         }),
         this.prisma.order.update({

@@ -22,11 +22,22 @@ export class ExchangeRateService {
     return new Decimal(this.config.get<string>("DEFAULT_XOF_PER_USD") ?? "615");
   }
 
-  async setRate(rateXofPerUsd: number, setByUserId: string) {
+  async getCurrentCostRate(): Promise<Decimal> {
+    const latest = await this.prisma.exchangeRate.findFirst({ orderBy: { effectiveFrom: "desc" } });
+    return new Decimal(latest?.costRateXofPerUsd?.toString() ?? this.config.get<string>("DEFAULT_COST_XOF_PER_USD") ?? "615");
+  }
+
+  async getCurrentRates() {
+    const [rateXofPerUsd, costRateXofPerUsd] = await Promise.all([this.getCurrentRate(), this.getCurrentCostRate()]);
+    return { rateXofPerUsd, costRateXofPerUsd };
+  }
+
+  async setRate(rateXofPerUsd: number, setByUserId: string, costRateXofPerUsd?: number) {
+    const costRate = costRateXofPerUsd ?? await this.getCurrentCostRate();
     const created = await this.prisma.exchangeRate.create({
-      data: { rateXofPerUsd, setByUserId },
+      data: { rateXofPerUsd, costRateXofPerUsd: costRate, setByUserId },
     });
-    await this.auditLog.record(setByUserId, "exchange_rate.set", created.id, { rateXofPerUsd });
+    await this.auditLog.record(setByUserId, "exchange_rate.set", created.id, { rateXofPerUsd, costRateXofPerUsd: costRate });
     return created;
   }
 

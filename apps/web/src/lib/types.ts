@@ -137,6 +137,9 @@ export interface AdminStats {
   totalRevenueXof: number;
   grossMarginXof: number;
   netMarginXof: number;
+  fxMarginXof: number;
+  cumulativeGrossMarginXof: number;
+  cumulativeNetMarginXof: number;
   topServices: { name: string; count: number; revenueXof: number }[];
 }
 
@@ -194,6 +197,7 @@ export interface UserRow {
 export interface ExchangeRateRow {
   id: string;
   rateXofPerUsd: string;
+  costRateXofPerUsd: string;
   effectiveFrom: string;
 }
 
