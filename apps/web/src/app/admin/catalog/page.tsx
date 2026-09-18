@@ -75,6 +75,7 @@ export default function AdminCatalogPage() {
   const [pricePreviews, setPricePreviews] = useState<Record<string, CatalogAdminPricePreview>>({});
   const [quoteStatus, setQuoteStatus] = useState<Record<string, "loading" | "error">>({});
   const latestQuoteQuantity = useRef<Record<string, number>>({});
+  const quoteTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const formSectionRef = useRef<HTMLDivElement>(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [error, setError] = useState<string | null>(null);
@@ -115,6 +116,9 @@ export default function AdminCatalogPage() {
 
   useEffect(() => setTypeFilter(null), [platformFilter]);
   useEffect(() => setPage(1), [catalogSearch, platformFilter, typeFilter, visibilityFilter, refillOnly, sort]);
+  useEffect(() => () => {
+    Object.values(quoteTimers.current).forEach(clearTimeout);
+  }, []);
 
   const filteredEntries = useMemo(() => {
     if (!entries) return [];
@@ -254,32 +258,33 @@ export default function AdminCatalogPage() {
     return quantities[entry.id] ?? entry.referenceQuantity;
   }
 
-  async function updateQuote(entry: CatalogAdminItem, requestedQuantity: number) {
+  function updateQuote(entry: CatalogAdminItem, requestedQuantity: number) {
     if (!token || !Number.isFinite(requestedQuantity)) return;
     const quantity = Math.max(entry.minQuantity, Math.min(entry.maxQuantity, Math.round(requestedQuantity)));
     latestQuoteQuantity.current[entry.id] = quantity;
     setQuantities((current) => ({ ...current, [entry.id]: quantity }));
     setQuoteStatus((current) => ({ ...current, [entry.id]: "loading" }));
-    try {
-      const preview = await api.get<CatalogAdminPricePreview>(
-        `/catalog/${entry.id}/admin-price-preview?quantity=${quantity}`,
-        token,
-      );
-      // A late response for an earlier slider position must not overwrite the latest quote.
-      setPricePreviews((current) => latestQuoteQuantity.current[entry.id] !== quantity
-        ? current
-        : { ...current, [entry.id]: preview });
-      if (latestQuoteQuantity.current[entry.id] === quantity) {
+    clearTimeout(quoteTimers.current[entry.id]);
+    // A range control fires on every pixel while dragged. Debouncing prevents those
+    // UI events from exhausting the serverless database connection pool.
+    quoteTimers.current[entry.id] = setTimeout(async () => {
+      try {
+        const preview = await api.get<CatalogAdminPricePreview>(
+          `/catalog/${entry.id}/admin-price-preview?quantity=${quantity}`,
+          token,
+        );
+        if (latestQuoteQuantity.current[entry.id] !== quantity) return;
+        setPricePreviews((current) => ({ ...current, [entry.id]: preview }));
         setQuoteStatus((current) => {
           const { [entry.id]: _status, ...rest } = current;
           return rest;
         });
+      } catch {
+        if (latestQuoteQuantity.current[entry.id] === quantity) {
+          setQuoteStatus((current) => ({ ...current, [entry.id]: "error" }));
+        }
       }
-    } catch {
-      if (latestQuoteQuantity.current[entry.id] === quantity) {
-        setQuoteStatus((current) => ({ ...current, [entry.id]: "error" }));
-      }
-    }
+    }, 180);
   }
 
   return (
