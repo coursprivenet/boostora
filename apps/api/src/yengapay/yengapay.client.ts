@@ -6,6 +6,7 @@ import { firstValueFrom } from "rxjs";
 import {
   YengapayApiError,
   YengapayArticle,
+  YengapayCheckoutInitResponse,
   YengapayInitResponse,
   YengapayPayResponse,
   YengapaySendOtpResponse,
@@ -43,6 +44,21 @@ export class YengapayClient {
     return this.request<YengapayInitResponse>(
       `/groups/${this.organizationId}/projects/${this.projectId}/direct-payment/init`,
       params,
+    );
+  }
+
+  async initCheckoutPayment(params: {
+    amount: number;
+    articles: YengapayArticle[];
+    reference: string;
+  }): Promise<YengapayCheckoutInitResponse> {
+    return this.request<YengapayCheckoutInitResponse>(
+      `/groups/${this.organizationId}/payment-intent/${this.projectId}`,
+      {
+        paymentAmount: params.amount,
+        reference: params.reference,
+        articles: params.articles,
+      },
     );
   }
 

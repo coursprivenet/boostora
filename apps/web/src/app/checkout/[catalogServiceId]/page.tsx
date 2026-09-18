@@ -74,6 +74,22 @@ type Step =
   | { kind: "success"; transactionId: string }
   | { kind: "pending"; orderId: string };
 
+function PaymentOperatorMark({ operator }: { operator: YengapayOperator }) {
+  if (operator.code === "TELECEL") {
+    return (
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-ink-900 bg-white p-1">
+        <img src="/payments/telecel-money-mark.png" alt="" className="h-full w-full object-contain" />
+      </span>
+    );
+  }
+
+  return (
+    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-ink-900 bg-white text-sm font-bold text-ink-900">
+      {operator.name.charAt(0)}
+    </span>
+  );
+}
+
 type PaymentResume = CreateOrderResponse & { catalogServiceId: string };
 
 const STEP_INDEX: Record<Step["kind"], number> = {
@@ -199,6 +215,10 @@ export default function CheckoutPage() {
         if (cancelled) return;
         if (resume.catalogServiceId !== catalogServiceId) {
           router.replace(`/checkout/${resume.catalogServiceId}?resume=${resume.orderId}`);
+          return;
+        }
+        if (resume.checkoutUrl) {
+          window.location.assign(resume.checkoutUrl);
           return;
         }
         setStep({ kind: "operator", created: resume });
@@ -327,6 +347,19 @@ export default function CheckoutPage() {
     setStep({ kind: "otp", created, operator, otpSent: false });
   }
 
+  async function chooseHostedCheckout(orderId: string) {
+    if (!token) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const { checkoutUrl } = await api.post<{ checkoutUrl: string }>(`/orders/${orderId}/payment/checkout`, {}, token);
+      window.location.assign(checkoutUrl);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Impossible d'ouvrir le paiement sécurisé");
+      setBusy(false);
+    }
+  }
+
   async function sendOtp(created: CreateOrderResponse, operator: YengapayOperator) {
     if (!token) return;
     setBusy(true);
@@ -334,7 +367,7 @@ export default function CheckoutPage() {
     try {
       await api.post(
         `/orders/${created.orderId}/payment/send-otp`,
-        { operatorCode: operator.code, countryCode: "BF", customerMSISDN: phone },
+        { operatorCode: operator.code, countryCode: operator.countryCode, customerMSISDN: phone },
         token,
       );
       setStep({ kind: "otp", created, operator, otpSent: true });
@@ -352,7 +385,7 @@ export default function CheckoutPage() {
     try {
       const result = await api.post<{ status: string; transactionId?: string }>(
         `/orders/${created.orderId}/payment/confirm`,
-        { operatorCode: operator.code, countryCode: "BF", customerMSISDN: phone, otp },
+        { operatorCode: operator.code, countryCode: operator.countryCode, customerMSISDN: phone, otp },
         token,
       );
       if (result.status === "DONE" && result.transactionId) {
@@ -675,15 +708,21 @@ export default function CheckoutPage() {
                     onClick={() => chooseOperator(step.created, op)}
                     className="flex items-center gap-3 rounded-xl2 border-2 border-ink-900 px-4 py-3 text-left transition-colors hover:bg-brand-300/20"
                   >
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-ink-900 bg-white text-sm font-bold text-ink-900">
-                      {op.name.charAt(0)}
-                    </span>
+                    <PaymentOperatorMark operator={op} />
                     <span className="flex-1">
                       <span className="block font-medium text-ink-900">{op.name}</span>
                       <span className="block text-xs text-ink-400">{op.countryName}</span>
                     </span>
                   </button>
                 ))}
+                <button
+                  onClick={() => chooseHostedCheckout(step.created.orderId)}
+                  disabled={busy}
+                  className="flex items-center gap-3 rounded-xl2 border-2 border-ink-900 px-4 py-3 text-left transition-colors hover:bg-brand-300/20 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-ink-900 bg-white p-1"><img src="/payments/card.svg" alt="" className="h-full w-full" /></span>
+                  <span className="flex-1"><span className="block font-medium text-ink-900">Carte bancaire / PayPal</span><span className="block text-xs text-ink-400">Paiement sécurisé par YengaPay</span></span>
+                </button>
                 {error && <p className="text-sm text-rose-600">{error}</p>}
               </div>
             )}
@@ -696,7 +735,7 @@ export default function CheckoutPage() {
                 </div>
 
                 <Input
-                  label="Numéro de téléphone"
+                  label={`Numéro de téléphone (${step.operator.countryName})`}
                   type="tel"
                   required
                   placeholder="70707070"

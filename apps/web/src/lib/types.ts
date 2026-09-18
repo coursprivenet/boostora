@@ -65,6 +65,8 @@ export interface CreateOrderResponse {
   priceClientXof: string;
   discountXof: string;
   availableOperators: YengapayOperator[];
+  /** Secure provider-hosted page for card and PayPal payments. */
+  checkoutUrl?: string;
 }
 
 export type CouponDiscountType = "PERCENT" | "FIXED_XOF";

@@ -40,7 +40,7 @@ const FEATURES: Feature[] = [
   },
 ];
 
-const OPERATORS = ["Orange Money", "Moov Money", "Coris Money", "Sank Money", "Telecel Money", "Carte bancaire"];
+const OPERATORS = ["Orange Money", "Moov Money", "Coris Money", "Sank Money", "Telecel Money", "Carte bancaire / PayPal"];
 
 export default function HomePage() {
   return (

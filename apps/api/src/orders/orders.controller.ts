@@ -60,6 +60,12 @@ export class OrdersController {
     return this.orders.create(user.id, dto);
   }
 
+  /** Opens the provider-hosted checkout only after the customer chose card/PayPal. */
+  @Post(":id/payment/checkout")
+  checkoutPayment(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string) {
+    return this.orders.createHostedCheckout(user.id, id);
+  }
+
   @Post(":id/payment/send-otp")
   sendOtp(
     @CurrentUser() user: AuthenticatedUser,

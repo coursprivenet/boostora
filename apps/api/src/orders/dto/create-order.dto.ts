@@ -30,4 +30,5 @@ export class CreateOrderDto {
   /** Must be explicitly true — enforced server-side, not just a disabled checkout button. */
   @Equals(true)
   acceptedTerms!: boolean;
+
 }

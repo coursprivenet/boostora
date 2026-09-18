@@ -32,6 +32,14 @@ export interface YengapayInitResponse {
   availableOperators: YengapayOperator[];
 }
 
+/** Hosted YengaPay Checkout. It is the provider's flow for card / PayPal rather
+ * than the mobile-money-only direct-payment OTP endpoints above. */
+export interface YengapayCheckoutInitResponse {
+  id: string;
+  checkoutPageUrlWithPaymentToken: string;
+  expiresAt?: string;
+}
+
 export interface YengapaySendOtpResponse {
   status: "OTP_SENT";
   message: string;

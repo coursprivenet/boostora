@@ -253,7 +253,7 @@ export class OrdersService {
     });
 
     try {
-      const init = await this.yengapay.initDirectPayment({
+      const paymentParams = {
         amount: finalPriceXof.toNumber(),
         reference: order.id,
         articles: [
@@ -263,7 +263,8 @@ export class OrdersService {
             price: finalPriceXof.toNumber(),
           },
         ],
-      });
+      };
+      const init = await this.yengapay.initDirectPayment(paymentParams);
 
       await this.prisma.payment.create({
         data: {
@@ -321,6 +322,7 @@ export class OrdersService {
 
     const init = existing.payment.rawInitResponse as {
       availableOperators: unknown;
+      checkoutPageUrlWithPaymentToken?: string;
     } | null;
     if (!init) return null;
 
@@ -329,7 +331,8 @@ export class OrdersService {
       expiresAt: existing.payment.expiresAt?.toISOString(),
       priceClientXof: existing.priceClientXof.toString(),
       discountXof: existing.discountXof.toString(),
-      availableOperators: init.availableOperators,
+      availableOperators: init.availableOperators ?? [],
+      ...(init.checkoutPageUrlWithPaymentToken ? { checkoutUrl: init.checkoutPageUrlWithPaymentToken } : {}),
     };
   }
 
@@ -343,8 +346,8 @@ export class OrdersService {
       throw new BadRequestException("Cette commande ne peut plus être reprise pour le paiement");
     }
 
-    const init = payment.rawInitResponse as { availableOperators?: unknown } | null;
-    if (!init?.availableOperators) {
+    const init = payment.rawInitResponse as { availableOperators?: unknown; checkoutPageUrlWithPaymentToken?: string } | null;
+    if (!init?.availableOperators && !init?.checkoutPageUrlWithPaymentToken) {
       throw new BadRequestException("Les moyens de paiement de cette commande sont indisponibles");
     }
 
@@ -354,8 +357,61 @@ export class OrdersService {
       expiresAt: payment.expiresAt?.toISOString(),
       priceClientXof: order.priceClientXof.toString(),
       discountXof: order.discountXof.toString(),
-      availableOperators: init.availableOperators,
+      availableOperators: init.availableOperators ?? [],
+      ...(init.checkoutPageUrlWithPaymentToken ? { checkoutUrl: init.checkoutPageUrlWithPaymentToken } : {}),
     };
+  }
+
+  /**
+   * The direct API only exposes Mobile Money. Card/PayPal are intentionally added
+   * from the existing operator-selection screen and continue in YengaPay Checkout.
+   */
+  async createHostedCheckout(userId: string, orderId: string) {
+    const { order, payment } = await this.getPayableOrderOrThrow(userId, orderId);
+    if (payment.operatorCode) {
+      throw new BadRequestException("Choisis à nouveau le paiement depuis la commande si tu veux changer de moyen");
+    }
+
+    const existingCheckout = payment.rawInitResponse as { checkoutPageUrlWithPaymentToken?: string } | null;
+    if (existingCheckout?.checkoutPageUrlWithPaymentToken) {
+      return { checkoutUrl: existingCheckout.checkoutPageUrlWithPaymentToken };
+    }
+
+    const reference = `${order.id}-checkout`;
+    try {
+      const catalogService = await this.prisma.catalogService.findUnique({
+        where: { id: order.catalogServiceId },
+        select: { name: true, description: true },
+      });
+      if (!catalogService) throw new NotFoundException("Service introuvable");
+      const init = await this.yengapay.initCheckoutPayment({
+        amount: order.priceClientXof.toNumber(),
+        reference,
+        articles: [
+          {
+            title: catalogService.name,
+            description: catalogService.description ?? catalogService.name,
+            price: order.priceClientXof.toNumber(),
+          },
+        ],
+      });
+
+      await this.prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          reference,
+          yengapayPaymentIntentId: init.id,
+          expiresAt: init.expiresAt ? new Date(init.expiresAt) : null,
+          rawInitResponse: init as unknown as object,
+        },
+      });
+      return { checkoutUrl: init.checkoutPageUrlWithPaymentToken };
+    } catch (err) {
+      if (err instanceof YengapayApiError) {
+        throw new BadRequestException(`Impossible d'ouvrir le paiement par carte: ${err.message}`);
+      }
+      throw err;
+    }
   }
 
   async sendOtp(userId: string, orderId: string, dto: SendOtpDto) {
