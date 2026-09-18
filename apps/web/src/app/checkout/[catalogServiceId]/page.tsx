@@ -718,7 +718,6 @@ export default function CheckoutPage() {
                     <option value="" disabled>Choisissez votre pays</option>
                     {PAYMENT_COUNTRIES.map((country) => <option key={country.code} value={country.code}>{country.name}</option>)}
                   </select>
-                  <p className="mt-2 text-xs text-ink-500">Les moyens disponibles changent selon le pays. Le paiement crypto est disponible quel que soit le pays.</p>
                 </fieldset>
 
                 <label className="flex items-start gap-2 text-sm text-ink-600">
