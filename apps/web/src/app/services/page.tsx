@@ -27,6 +27,39 @@ function typePriorityRank(type: string): number {
   return i === -1 ? TYPE_PRIORITY.length : i;
 }
 
+// "Tous" is a storefront, not a raw provider export. Lead with the core offers a
+// customer expects to find first; specialised services keep their normal position
+// afterwards. Bot-labelled offers are deliberately last whatever their category.
+const CATEGORY_PRIORITY = [
+  "facebook-followers",
+  "facebook-likes",
+  "instagram-followers",
+  "youtube-views",
+  "tiktok-followers",
+  "facebook-views",
+  "instagram-likes",
+  "tiktok-views",
+  "youtube-subscribers",
+  "facebook-reactions",
+  "instagram-views",
+  "tiktok-likes",
+  "facebook-shares",
+  "instagram-shares",
+  "tiktok-shares",
+  "youtube-likes",
+  "facebook-comments",
+  "instagram-comments",
+  "tiktok-comments",
+  "youtube-comments",
+];
+
+function defaultCatalogRank(service: CatalogItem): number {
+  if (/\bbot\b/i.test(service.name)) return 10_000;
+  const categoryRank = CATEGORY_PRIORITY.indexOf(service.category.slug);
+  if (categoryRank !== -1) return categoryRank;
+  return 100 + typePriorityRank(typeOf(service.category.name));
+}
+
 const COUNTRY_TOKENS = [
   "Italie", "Espagne", "Brésil", "Turquie", "Inde", "Indonésie", "Allemagne", "Thaïlande",
   "Irak", "Corée", "Égypte", "Vietnam", "Grèce", "Argentine", "Mexique", "États-Unis", "USA",
@@ -98,7 +131,7 @@ export default function ServicesPage() {
     if (refillOnly) list = list.filter((s) => !s.riskWarning);
     if (sort === "default") {
       list = [...list].sort(
-        (a, b) => typePriorityRank(typeOf(a.category.name)) - typePriorityRank(typeOf(b.category.name)),
+        (a, b) => defaultCatalogRank(a) - defaultCatalogRank(b),
       );
     } else {
       list = [...list].sort((a, b) => {
