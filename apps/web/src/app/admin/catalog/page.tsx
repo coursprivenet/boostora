@@ -20,6 +20,7 @@ interface FormState {
   pricingRuleType: PricingRuleType;
   pricingValue: string;
   roundingStep: string;
+  minPriceXof: string;
   isVisible: boolean;
 }
 
@@ -33,6 +34,7 @@ const EMPTY_FORM: FormState = {
   pricingRuleType: "PERCENT_MARGIN",
   pricingValue: "60",
   roundingStep: "",
+  minPriceXof: "100",
   isVisible: true,
 };
 
@@ -179,9 +181,10 @@ export default function AdminCatalogPage() {
       name: entry.name,
       description: entry.description ?? "",
       riskWarning: entry.riskWarning ?? "",
-      pricingRuleType: "PERCENT_MARGIN",
-      pricingValue: "",
-      roundingStep: "",
+      pricingRuleType: entry.pricingRuleType,
+      pricingValue: entry.pricingValue,
+      roundingStep: entry.roundingStep ?? "",
+      minPriceXof: entry.minPriceXof ?? "",
       isVisible: entry.isVisible,
     });
     setError(null);
@@ -221,6 +224,7 @@ export default function AdminCatalogPage() {
               ? { pricingRuleType: form.pricingRuleType, pricingValue: Number(form.pricingValue) }
               : {}),
             ...(form.roundingStep ? { roundingStep: Number(form.roundingStep) } : {}),
+            ...(form.minPriceXof ? { minPriceXof: Number(form.minPriceXof) } : {}),
           },
           token,
         );
@@ -236,6 +240,7 @@ export default function AdminCatalogPage() {
             pricingRuleType: form.pricingRuleType,
             pricingValue: Number(form.pricingValue),
             roundingStep: form.roundingStep ? Number(form.roundingStep) : undefined,
+            minPriceXof: form.minPriceXof ? Number(form.minPriceXof) : undefined,
             isVisible: form.isVisible,
           },
           token,
@@ -425,6 +430,17 @@ export default function AdminCatalogPage() {
             onChange={(e) => setForm((f) => ({ ...f, pricingValue: e.target.value }))}
             placeholder={form.editingId ? "laisser vide pour ne pas changer" : undefined}
           />
+          <div>
+            <Input
+              label="Prix minimum de la commande (FCFA)"
+              type="number"
+              min="1"
+              value={form.minPriceXof}
+              onChange={(e) => setForm((f) => ({ ...f, minPriceXof: e.target.value }))}
+              placeholder="ex : 100"
+            />
+            <p className="mt-1 text-xs text-ink-500">Le client ne paiera jamais moins que ce montant, même pour la quantité minimale.</p>
+          </div>
           <Input
             label="Arrondi (XOF, optionnel)"
             type="number"

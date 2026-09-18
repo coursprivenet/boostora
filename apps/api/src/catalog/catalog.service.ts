@@ -181,6 +181,11 @@ export class CatalogService {
         category: s.category,
         isVisible: s.isVisible,
         displayOrder: s.displayOrder,
+        pricingRuleType: s.pricingRuleType,
+        pricingValue: s.pricingValue.toString(),
+        roundingStep: s.roundingStep?.toString() ?? null,
+        minPriceXof: s.minPriceXof?.toString() ?? null,
+        maxPriceXof: s.maxPriceXof?.toString() ?? null,
         provider: {
           providerServiceId: s.providerService.providerServiceId,
           platform: s.providerService.platform,

@@ -167,6 +167,11 @@ export interface CatalogAdminItem {
   riskWarning: string | null;
   isVisible: boolean;
   displayOrder: number;
+  pricingRuleType: "FIXED_PRICE" | "PERCENT_MARGIN" | "FIXED_MARGIN";
+  pricingValue: string;
+  roundingStep: string | null;
+  minPriceXof: string | null;
+  maxPriceXof: string | null;
   category: { id: string; name: string; slug: string };
   provider: {
     providerServiceId: number;
