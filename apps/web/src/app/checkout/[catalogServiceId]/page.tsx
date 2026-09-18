@@ -75,10 +75,19 @@ type Step =
   | { kind: "pending"; orderId: string };
 
 function PaymentOperatorMark({ operator }: { operator: YengapayOperator }) {
-  if (operator.code === "TELECEL") {
+  const marks: Record<string, { src: string; alt: string }> = {
+    ORANGE: { src: "https://developer.orange.com/od-uploads/Orange_Money_36ecm95i.png", alt: "Orange Money" },
+    MOOV: { src: "https://moov-money.bf/Merchant/assets/moov/images/logo-home.png", alt: "Moov Money" },
+    CORISM: { src: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/ed/99/b0/ed99b08b-7e7a-0de3-a9ee-9ec18790e085/AppIcon-0-1x_U007emarketing-0-8-0-85-220-0.png/1200x630wa.png", alt: "Coris Money" },
+    SANKM: { src: "https://app.sankmoney.com/static/media/Sank_red.0bd112c047b134883b71.png", alt: "Sank Money" },
+    TELECEL: { src: "/payments/telecel-money-mark.png", alt: "Telecel Money" },
+  };
+  const mark = marks[operator.code];
+
+  if (mark) {
     return (
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-ink-900 bg-white p-1">
-        <img src="/payments/telecel-money-mark.png" alt="" className="h-full w-full object-contain" />
+        <img src={mark.src} alt={mark.alt} className="h-full w-full object-contain" />
       </span>
     );
   }
@@ -164,6 +173,7 @@ export default function CheckoutPage() {
   const [couponChecking, setCouponChecking] = useState(false);
 
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [paymentCountryCode, setPaymentCountryCode] = useState<string | null>(null);
 
   const [step, setStep] = useState<Step>({ kind: "form" });
   const [busy, setBusy] = useState(false);
@@ -221,6 +231,7 @@ export default function CheckoutPage() {
           window.location.assign(resume.checkoutUrl);
           return;
         }
+        setPaymentCountryCode(resume.availableOperators[0]?.countryCode ?? null);
         setStep({ kind: "operator", created: resume });
       })
       .catch((err) => {
@@ -334,6 +345,7 @@ export default function CheckoutPage() {
         },
         token,
       );
+      setPaymentCountryCode(created.availableOperators[0]?.countryCode ?? null);
       setStep({ kind: "operator", created });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Impossible de créer la commande");
@@ -346,6 +358,17 @@ export default function CheckoutPage() {
     setError(null);
     setStep({ kind: "otp", created, operator, otpSent: false });
   }
+
+  const paymentCountries = step.kind === "operator"
+    ? Array.from(new Map(step.created.availableOperators.map((operator) => [operator.countryCode, {
+      code: operator.countryCode,
+      name: operator.countryName,
+      flagUrl: operator.flagUrl,
+    }])).values())
+    : [];
+  const displayedOperators = step.kind === "operator" && paymentCountryCode
+    ? step.created.availableOperators.filter((operator) => operator.countryCode === paymentCountryCode)
+    : step.kind === "operator" ? step.created.availableOperators : [];
 
   async function chooseHostedCheckout(orderId: string) {
     if (!token) return;
@@ -702,7 +725,22 @@ export default function CheckoutPage() {
                   <p className="text-sm text-emerald-600">-{formatXof(step.created.discountXof)} appliqué</p>
                 )}
                 <p className="mt-1 text-sm font-medium text-ink-700">Choisis ton moyen de paiement :</p>
-                {step.created.availableOperators.map((op) => (
+                {paymentCountries.length > 1 && (
+                  <div className="flex flex-wrap gap-2" aria-label="Pays de paiement">
+                    {paymentCountries.map((country) => (
+                      <button
+                        key={country.code}
+                        type="button"
+                        onClick={() => setPaymentCountryCode(country.code)}
+                        className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${paymentCountryCode === country.code ? "border-ink-900 bg-ink-900 text-white" : "border-ink-200 bg-white text-ink-700 hover:border-ink-900"}`}
+                      >
+                        {country.flagUrl && <img src={country.flagUrl} alt="" className="h-3.5 w-5 rounded-sm object-cover" />}
+                        {country.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {displayedOperators.map((op) => (
                   <button
                     key={op.code}
                     onClick={() => chooseOperator(step.created, op)}
