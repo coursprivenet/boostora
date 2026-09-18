@@ -8,6 +8,11 @@ import { Tooltip } from "@/components/Tooltip";
 
 const PAGE_SIZE = 20;
 const PLATFORM_PREFIXES = ["Instagram", "TikTok", "Facebook", "YouTube", "Spotify", "X", "WhatsApp", "Snapchat", "LinkedIn", "Telegram"];
+const PLATFORM_LABELS: Record<string, string> = {
+  instagram: "Instagram", tiktok: "TikTok", facebook: "Facebook", youtube: "YouTube",
+  spotify: "Spotify", twitter: "X (Twitter)", whatsapp: "WhatsApp", snapchat: "Snapchat",
+  linkedin: "LinkedIn", telegram: "Telegram",
+};
 
 // Category names are stored as "<Plateforme> <Type>" in French (e.g. "Instagram Abonnés").
 // Stripping the known platform prefix gives the type on its own, which is what lets a
@@ -241,7 +246,7 @@ export default function ServicesPage() {
                   platformFilter === pf ? "bg-ink-900 text-brand-500" : "bg-white text-ink-900 hover:bg-brand-300/40"
                 }`}
               >
-                {pf} ({count})
+                {PLATFORM_LABELS[pf] ?? pf} ({count})
               </button>
             ))}
           </div>

@@ -20,6 +20,10 @@ function displayName(name: string) {
     .replace(/\bShares?\b/gi, "Partages");
 }
 
+function displayPlatform(platform: string) {
+  return ({ instagram: "Instagram", tiktok: "TikTok", facebook: "Facebook", youtube: "YouTube", spotify: "Spotify", twitter: "X (Twitter)", whatsapp: "WhatsApp", snapchat: "Snapchat", linkedin: "LinkedIn", telegram: "Telegram" } as Record<string, string>)[platform] ?? platform;
+}
+
 function isGenericNoRefillWarning(warning: string | null): boolean {
   return Boolean(warning && /(?:sans|pas de) refill|r[ée]sultats? non garantis?/i.test(warning));
 }
@@ -29,7 +33,7 @@ export function ServiceCard({ item }: { item: CatalogItem }) {
     <div className="flex flex-col justify-between rounded-xl2 border border-ink-200 bg-white p-5 shadow-[0_3px_12px_rgba(10,11,15,0.04)] transition-all hover:-translate-y-0.5 hover:border-ink-900 hover:shadow-card">
       <div>
         <span className="inline-flex items-center rounded-full bg-brand-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-ink-900">
-          {item.platform}
+          {displayPlatform(item.platform)}
         </span>
         <h3 className="mt-3 line-clamp-2 text-base font-semibold leading-snug text-ink-900">{displayName(item.name)}</h3>
         {item.description && (
