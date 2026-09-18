@@ -116,24 +116,47 @@ export class CatalogService {
 
   /** Admin view: exposes provider cost and margin. Never return this shape to a client. */
   async listAdmin() {
-    const [services, fxRate] = await Promise.all([
+    const [services, fxRate, costFxRate] = await Promise.all([
       this.prisma.catalogService.findMany({
         include: { providerService: true, category: true },
         orderBy: { displayOrder: "asc" },
       }),
       this.exchangeRate.getCurrentRate(),
+      this.exchangeRate.getCurrentCostRate(),
     ]);
 
     return services.map((s) => {
-      const price = computePrice({
+      const minQuantity = s.minQuantityOverride ?? s.providerService.minQuantity;
+      const maxQuantity = s.maxQuantityOverride ?? s.providerService.maxQuantity;
+      const costUsdFor = (quantity: number) => new Decimal(s.providerService.rateUsd.toString()).mul(
+        s.providerService.unit === "per_1000" ? new Decimal(quantity).div(1000) : 1,
+      );
+      const priceFor = (quantity: number) => computePrice({
         pricingRuleType: s.pricingRuleType,
         pricingValue: s.pricingValue.toString(),
-        costUsd: s.providerService.rateUsd.toString(),
+        costUsd: costUsdFor(quantity),
         fxRateXofPerUsd: fxRate,
         roundingStep: s.roundingStep?.toString(),
         minPriceXof: s.minPriceXof?.toString(),
         maxPriceXof: s.maxPriceXof?.toString(),
       });
+      // Same starting quantity and 100 XOF discovery rule as the public catalogue.
+      // Admin numbers must describe the exact offer the customer sees, not a hidden
+      // provider "per 1,000" reference.
+      let referenceQuantity = s.providerService.unit === "per_1000" ? minQuantity : 1;
+      let price = priceFor(referenceQuantity);
+      if (s.providerService.unit === "per_1000" && price.priceClientXof.lt(100)) {
+        let low = minQuantity;
+        let high = maxQuantity;
+        while (low < high) {
+          const middle = Math.floor((low + high) / 2);
+          if (priceFor(middle).priceClientXof.gte(100)) high = middle;
+          else low = middle + 1;
+        }
+        referenceQuantity = low;
+        price = priceFor(referenceQuantity);
+      }
+      const actualProviderCostXof = costUsdFor(referenceQuantity).mul(costFxRate);
 
       return {
         id: s.id,
@@ -153,12 +176,14 @@ export class CatalogService {
           minQuantity: s.providerService.minQuantity,
           maxQuantity: s.providerService.maxQuantity,
         },
-        minQuantity: s.minQuantityOverride ?? s.providerService.minQuantity,
-        maxQuantity: s.maxQuantityOverride ?? s.providerService.maxQuantity,
+        minQuantity,
+        maxQuantity,
+        referenceQuantity,
         fxRateUsed: fxRate.toString(),
+        costFxRateUsed: costFxRate.toString(),
         priceClientXof: price.priceClientXof.toDecimalPlaces(0).toString(),
-        costProviderXof: price.costProviderXof.toDecimalPlaces(0).toString(),
-        marginXof: price.marginXof.toDecimalPlaces(0).toString(),
+        costProviderXof: actualProviderCostXof.toDecimalPlaces(0).toString(),
+        marginXof: price.priceClientXof.minus(actualProviderCostXof).toDecimalPlaces(0).toString(),
       };
     });
   }

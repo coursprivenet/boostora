@@ -180,7 +180,9 @@ export interface CatalogAdminItem {
   };
   minQuantity: number;
   maxQuantity: number;
+  referenceQuantity: number;
   fxRateUsed: string;
+  costFxRateUsed: string;
   priceClientXof: string;
   costProviderXof: string;
   marginXof: string;

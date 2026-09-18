@@ -437,7 +437,7 @@ export default function AdminCatalogPage() {
 
           <div className="mb-3 flex items-center justify-between text-sm text-ink-500">
             <span>{filteredEntries.length} service{filteredEntries.length > 1 ? "s" : ""}</span>
-            <span>Prix, coût et marge sont calculés pour le minimum de commande.</span>
+            <span>Prix, coût et marge correspondent à la même quantité affichée.</span>
           </div>
 
           {visibleEntries.length > 0 ? (
@@ -456,9 +456,9 @@ export default function AdminCatalogPage() {
                   </div>
                   {entry.description && <p className="mt-3 line-clamp-2 text-sm text-ink-600">{entry.description}</p>}
                   <div className="mt-4 grid grid-cols-3 gap-2 border-y border-ink-100 py-3 text-xs">
-                    <div><p className="text-ink-400">Prix client</p><p className="mt-1 font-semibold text-ink-900">{formatXof(entry.priceClientXof)}</p></div>
-                    <div><p className="text-ink-400">Coût</p><p className="mt-1 font-medium text-ink-700">{formatXof(entry.costProviderXof)}</p></div>
-                    <div><p className="text-ink-400">Marge</p><p className="mt-1 font-semibold text-emerald-700">{formatXof(entry.marginXof)}</p></div>
+                    <div><p className="text-ink-400">Prix · {entry.referenceQuantity.toLocaleString("fr-FR")} unités</p><p className="mt-1 font-semibold text-ink-900">{formatXof(entry.priceClientXof)}</p></div>
+                    <div><p className="text-ink-400">Coût réel</p><p className="mt-1 font-medium text-ink-700">{formatXof(entry.costProviderXof)}</p></div>
+                    <div><p className="text-ink-400">Marge brute</p><p className="mt-1 font-semibold text-emerald-700">{formatXof(entry.marginXof)}</p></div>
                   </div>
                   <div className="mt-4 flex items-center gap-3">
                     {entry.provider.refillSupported && <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700">Refill</span>}
