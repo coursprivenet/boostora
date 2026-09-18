@@ -40,10 +40,9 @@ export class CryptomusClient {
     return this.request<CryptomusInvoiceResponse>("/v1/payment", {
       amount: params.amountUsd,
       currency: "USD",
-      // Start with USDT on TRON: it is the clearest, lowest-friction stablecoin
-      // choice for the intended audience. More assets can be enabled later.
-      to_currency: "USDT",
-      network: "tron",
+      // With a fiat invoice currency, Cryptomus presents its own supported crypto
+      // and network picker. Do not impose a chain: the customer chooses the wallet
+      // asset/network that they actually hold.
       order_id: `crypto-${params.orderId}`,
       url_callback: params.callbackUrl,
       url_return: params.returnUrl,
