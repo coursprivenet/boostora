@@ -72,12 +72,13 @@ export default function AdminCatalogPage() {
   const [sort, setSort] = useState<"default" | "price-asc" | "price-desc" | "margin-asc" | "margin-desc">("default");
   const [page, setPage] = useState(1);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [quantityDrafts, setQuantityDrafts] = useState<Record<string, string>>({});
   const [pricePreviews, setPricePreviews] = useState<Record<string, CatalogAdminPricePreview>>({});
   const [quoteStatus, setQuoteStatus] = useState<Record<string, "loading" | "error">>({});
   const latestQuoteQuantity = useRef<Record<string, number>>({});
   const quoteTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
-  const formSectionRef = useRef<HTMLDivElement>(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [syncResult, setSyncResult] = useState<string | null>(null);
@@ -183,8 +184,23 @@ export default function AdminCatalogPage() {
       roundingStep: "",
       isVisible: entry.isVisible,
     });
-    // The editor lives above the card grid; bring it into view so the action is explicit.
-    requestAnimationFrame(() => formSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    setError(null);
+    setIsEditorOpen(true);
+  }
+
+  function startCreate() {
+    setForm(EMPTY_FORM);
+    setSearch("");
+    setError(null);
+    setIsEditorOpen(true);
+  }
+
+  function closeEditor() {
+    if (busy) return;
+    setForm(EMPTY_FORM);
+    setSearch("");
+    setError(null);
+    setIsEditorOpen(false);
   }
 
   async function handleSubmit() {
@@ -226,6 +242,7 @@ export default function AdminCatalogPage() {
         );
       }
       setForm(EMPTY_FORM);
+      setIsEditorOpen(false);
       loadAll();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Erreur d'enregistrement");
@@ -258,11 +275,32 @@ export default function AdminCatalogPage() {
     return quantities[entry.id] ?? entry.referenceQuantity;
   }
 
-  function updateQuote(entry: CatalogAdminItem, requestedQuantity: number) {
+  function quantityTextFor(entry: CatalogAdminItem) {
+    return quantityDrafts[entry.id] ?? String(quantityFor(entry));
+  }
+
+  function updateQuantityText(entry: CatalogAdminItem, value: string) {
+    setQuantityDrafts((current) => ({ ...current, [entry.id]: value }));
+    if (value === "") return;
+    const quantity = Number(value);
+    if (Number.isFinite(quantity)) updateQuote(entry, quantity, true);
+  }
+
+  function commitQuantityText(entry: CatalogAdminItem) {
+    const value = Number(quantityTextFor(entry));
+    const quantity = Number.isFinite(value)
+      ? Math.max(entry.minQuantity, Math.min(entry.maxQuantity, Math.round(value)))
+      : quantityFor(entry);
+    setQuantityDrafts((current) => ({ ...current, [entry.id]: String(quantity) }));
+    updateQuote(entry, quantity);
+  }
+
+  function updateQuote(entry: CatalogAdminItem, requestedQuantity: number, preserveDraft = false) {
     if (!token || !Number.isFinite(requestedQuantity)) return;
     const quantity = Math.max(entry.minQuantity, Math.min(entry.maxQuantity, Math.round(requestedQuantity)));
     latestQuoteQuantity.current[entry.id] = quantity;
     setQuantities((current) => ({ ...current, [entry.id]: quantity }));
+    if (!preserveDraft) setQuantityDrafts((current) => ({ ...current, [entry.id]: String(quantity) }));
     setQuoteStatus((current) => ({ ...current, [entry.id]: "loading" }));
     clearTimeout(quoteTimers.current[entry.id]);
     // A range control fires on every pixel while dragged. Debouncing prevents those
@@ -291,16 +329,23 @@ export default function AdminCatalogPage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-ink-900">Catalogue</h1>
-        <Button variant="secondary" loading={busy} onClick={handleSync}>
-          Synchroniser PanelFollows
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" loading={busy} onClick={handleSync}>Synchroniser PanelFollows</Button>
+          <Button onClick={startCreate}>Ajouter un service</Button>
+        </div>
       </div>
       {syncResult && <p className="mb-4 text-sm text-ink-500">{syncResult}</p>}
 
-      <div ref={formSectionRef} className="mb-8 scroll-mt-6 rounded-xl2 border border-ink-100 bg-white p-5 shadow-soft">
-        <h2 className="mb-4 text-sm font-semibold text-ink-900">
-          {form.editingId ? "Modifier le service" : "Ajouter un service au catalogue"}
-        </h2>
+      {isEditorOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-900/45 p-4" role="dialog" aria-modal="true" aria-labelledby="catalog-editor-title" onMouseDown={closeEditor}>
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl2 bg-white p-5 shadow-xl" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="mb-4 flex items-center justify-between gap-4">
+              <h2 id="catalog-editor-title" className="text-lg font-semibold text-ink-900">
+                {form.editingId ? "Modifier le service" : "Ajouter un service au catalogue"}
+              </h2>
+              <button onClick={closeEditor} aria-label="Fermer" className="rounded-full p-2 text-ink-500 hover:bg-ink-100 hover:text-ink-900">✕</button>
+            </div>
+      <div>
 
         {!form.editingId && (
           <div className="mb-4">
@@ -425,13 +470,12 @@ export default function AdminCatalogPage() {
           >
             {form.editingId ? "Enregistrer" : "Ajouter au catalogue"}
           </Button>
-          {form.editingId && (
-            <Button variant="ghost" onClick={() => setForm(EMPTY_FORM)}>
-              Annuler
-            </Button>
-          )}
+          <Button variant="ghost" onClick={closeEditor}>Annuler</Button>
         </div>
       </div>
+          </div>
+        </div>
+      )}
 
       {!entries && <p className="text-ink-400">Chargement…</p>}
 
@@ -518,8 +562,9 @@ export default function AdminCatalogPage() {
                         type="number"
                         min={entry.minQuantity}
                         max={entry.maxQuantity}
-                        value={quantity}
-                        onChange={(event) => updateQuote(entry, Number(event.target.value))}
+                        value={quantityTextFor(entry)}
+                        onChange={(event) => updateQuantityText(entry, event.target.value)}
+                        onBlur={() => commitQuantityText(entry)}
                         className="w-24 rounded-md border border-ink-200 bg-white px-2 py-1 text-right text-sm font-semibold text-ink-900"
                       />
                     </div>
