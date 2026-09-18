@@ -77,7 +77,7 @@ type Step =
 function PaymentOperatorMark({ operator }: { operator: YengapayOperator }) {
   const marks: Record<string, { src: string; alt: string }> = {
     ORANGE: { src: "https://developer.orange.com/od-uploads/Orange_Money_36ecm95i.png", alt: "Orange Money" },
-    MOOV: { src: "https://moov-money.bf/Merchant/assets/moov/images/logo-home.png", alt: "Moov Money" },
+    MOOV: { src: "/payments/moov-money.png", alt: "Moov Money" },
     CORISM: { src: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/ed/99/b0/ed99b08b-7e7a-0de3-a9ee-9ec18790e085/AppIcon-0-1x_U007emarketing-0-8-0-85-220-0.png/1200x630wa.png", alt: "Coris Money" },
     SANKM: { src: "https://app.sankmoney.com/static/media/Sank_red.0bd112c047b134883b71.png", alt: "Sank Money" },
     TELECEL: { src: "/payments/telecel-money-mark.png", alt: "Telecel Money" },
@@ -725,19 +725,26 @@ export default function CheckoutPage() {
                   <p className="text-sm text-emerald-600">-{formatXof(step.created.discountXof)} appliqué</p>
                 )}
                 <p className="mt-1 text-sm font-medium text-ink-700">Choisis ton moyen de paiement :</p>
-                {paymentCountries.length > 1 && (
-                  <div className="flex flex-wrap gap-2" aria-label="Pays de paiement">
-                    {paymentCountries.map((country) => (
-                      <button
-                        key={country.code}
-                        type="button"
-                        onClick={() => setPaymentCountryCode(country.code)}
-                        className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${paymentCountryCode === country.code ? "border-ink-900 bg-ink-900 text-white" : "border-ink-200 bg-white text-ink-700 hover:border-ink-900"}`}
-                      >
-                        {country.flagUrl && <img src={country.flagUrl} alt="" className="h-3.5 w-5 rounded-sm object-cover" />}
-                        {country.name}
-                      </button>
-                    ))}
+                {paymentCountries.length > 0 && (
+                  <div className="rounded-xl2 border border-ink-200 bg-ink-50/50 p-3" aria-label="Pays de paiement">
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-500">Pays de paiement</p>
+                    <div className="flex flex-wrap gap-2">
+                      {paymentCountries.map((country) => (
+                        <button
+                          key={country.code}
+                          type="button"
+                          disabled={paymentCountries.length === 1}
+                          onClick={() => setPaymentCountryCode(country.code)}
+                          className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${paymentCountryCode === country.code ? "border-ink-900 bg-ink-900 text-white" : "border-ink-200 bg-white text-ink-700 hover:border-ink-900"} disabled:cursor-default`}
+                        >
+                          {country.flagUrl && <img src={country.flagUrl} alt="" className="h-3.5 w-5 rounded-sm object-cover" />}
+                          {country.name}
+                        </button>
+                      ))}
+                    </div>
+                    {paymentCountries.length === 1 && (
+                      <p className="mt-2 text-xs text-ink-500">Les autres pays s&apos;afficheront ici dès que YengaPay les rendra disponibles pour ce projet.</p>
+                    )}
                   </div>
                 )}
                 {displayedOperators.map((op) => (
