@@ -12,8 +12,9 @@ import { Button } from "@/components/Button";
 import { Tooltip } from "@/components/Tooltip";
 
 const SLIDER_STEPS = 1000;
-// The merchant must be Active in Cryptomus before an invoice can be issued.
-const CRYPTO_PAYMENTS_ACTIVE = false;
+// The merchant account is active. Cryptomus displays the asset and network picker
+// in its secure invoice, so Wassago never imposes a particular blockchain.
+const CRYPTO_PAYMENTS_ACTIVE = true;
 const PAYMENT_COUNTRIES = [
   { code: "BF", name: "Burkina Faso" },
   { code: "CI", name: "Côte d’Ivoire" },
@@ -830,7 +831,7 @@ export default function CheckoutPage() {
                   className="flex items-center gap-3 rounded-xl2 border-2 border-ink-900 px-4 py-3 text-left transition-colors hover:bg-brand-300/20 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-ink-900 bg-white text-lg">₮</span>
-                  <span className="flex-1"><span className="block font-medium text-ink-900">Payer en crypto</span><span className="block text-xs text-ink-400">Bientôt disponible</span></span>
+                  <span className="flex-1"><span className="block font-medium text-ink-900">Payer en crypto</span><span className="block text-xs text-ink-400">Choisissez votre crypto et votre réseau</span></span>
                 </button>
                 {error && <p className="text-sm text-rose-600">{error}</p>}
               </div>
