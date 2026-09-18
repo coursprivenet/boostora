@@ -266,6 +266,31 @@ export default function AdminCatalogPage() {
     }
   }
 
+  async function restoreDefaultPricing() {
+    if (!token || !form.editingId) return;
+    if (!window.confirm("Rétablir la tarification Wassago par défaut ? Cela applique 60 % de marge et un prix minimum de 100 FCFA.")) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await api.patch(
+        `/catalog/${form.editingId}`,
+        {
+          pricingRuleType: "PERCENT_MARGIN",
+          pricingValue: 60,
+          minPriceXof: 100,
+        },
+        token,
+      );
+      setForm(EMPTY_FORM);
+      setIsEditorOpen(false);
+      loadAll();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Restauration impossible");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function toggleVisible(entry: CatalogAdminItem) {
     if (!token) return;
     await api.patch(`/catalog/${entry.id}`, { isVisible: !entry.isVisible }, token);
@@ -497,6 +522,11 @@ export default function AdminCatalogPage() {
           >
             {form.editingId ? "Enregistrer" : "Ajouter au catalogue"}
           </Button>
+          {form.editingId && (
+            <Button variant="secondary" loading={busy} onClick={restoreDefaultPricing}>
+              Rétablir tarif Wassago
+            </Button>
+          )}
           <Button variant="ghost" onClick={closeEditor}>Annuler</Button>
         </div>
       </div>
