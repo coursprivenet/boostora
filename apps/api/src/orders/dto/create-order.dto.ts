@@ -1,4 +1,4 @@
-import { Equals, IsInt, IsOptional, IsPositive, IsString, IsUrl } from "class-validator";
+import { Equals, IsIn, IsInt, IsOptional, IsPositive, IsString, IsUrl } from "class-validator";
 
 export class CreateOrderDto {
   @IsString()
@@ -30,5 +30,10 @@ export class CreateOrderDto {
   /** Must be explicitly true — enforced server-side, not just a disabled checkout button. */
   @Equals(true)
   acceptedTerms!: boolean;
+
+  /** BF uses YengaPay Direct; CI and BJ use the enabled provider Checkout flow. */
+  @IsOptional()
+  @IsIn(["BF", "CI", "BJ"])
+  paymentCountryCode?: "BF" | "CI" | "BJ";
 
 }

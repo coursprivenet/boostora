@@ -12,6 +12,11 @@ import { Button } from "@/components/Button";
 import { Tooltip } from "@/components/Tooltip";
 
 const SLIDER_STEPS = 1000;
+const PAYMENT_COUNTRIES = [
+  { code: "BF", name: "Burkina Faso", flagUrl: "https://flagcdn.com/w40/bf.png", description: "Paiement Mobile Money directement dans Wassago" },
+  { code: "CI", name: "Côte d’Ivoire", flagUrl: "https://flagcdn.com/w40/ci.png", description: "Paiement sécurisé via le checkout YengaPay" },
+  { code: "BJ", name: "Bénin", flagUrl: "https://flagcdn.com/w40/bj.png", description: "Paiement sécurisé via le checkout YengaPay" },
+] as const;
 
 /** Cubic curve: most of the slider's travel maps to the low end of the range, where
  * real orders cluster, while still reaching the service's exact max at the far end —
@@ -175,7 +180,7 @@ export default function CheckoutPage() {
   const [couponChecking, setCouponChecking] = useState(false);
 
   const [acceptedTerms, setAcceptedTerms] = useState(false);
-  const [paymentCountryCode, setPaymentCountryCode] = useState<string | null>(null);
+  const [paymentCountryCode, setPaymentCountryCode] = useState<string | null>("BF");
 
   const [step, setStep] = useState<Step>({ kind: "form" });
   const [busy, setBusy] = useState(false);
@@ -343,9 +348,14 @@ export default function CheckoutPage() {
             ? { dripfeedRuns, dripfeedIntervalMinutes: computedIntervalMinutes() }
             : {}),
           acceptedTerms,
+          paymentCountryCode,
         },
         token,
       );
+      if (created.checkoutUrl) {
+        window.location.assign(created.checkoutUrl);
+        return;
+      }
       openCountrySelection(created);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Impossible de créer la commande");
@@ -687,6 +697,34 @@ export default function CheckoutPage() {
                     )}
                   </div>
                 )}
+
+                <fieldset>
+                  <legend className="mb-2 text-sm font-medium text-ink-900">Pays de paiement</legend>
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    {PAYMENT_COUNTRIES.map((country) => (
+                      <label
+                        key={country.code}
+                        className={`flex cursor-pointer items-start gap-2 rounded-xl2 border-2 p-3 transition-colors ${paymentCountryCode === country.code ? "border-ink-900 bg-brand-300/20" : "border-ink-200 bg-white hover:border-ink-900"}`}
+                      >
+                        <input
+                          type="radio"
+                          name="payment-country"
+                          value={country.code}
+                          checked={paymentCountryCode === country.code}
+                          onChange={() => setPaymentCountryCode(country.code)}
+                          className="mt-1"
+                        />
+                        <span>
+                          <span className="flex items-center gap-1.5 font-medium text-ink-900">
+                            <img src={country.flagUrl} alt="" className="h-3.5 w-5 rounded-sm object-cover" />
+                            {country.name}
+                          </span>
+                          <span className="mt-1 block text-xs leading-snug text-ink-500">{country.description}</span>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
 
                 <label className="flex items-start gap-2 text-sm text-ink-600">
                   <input

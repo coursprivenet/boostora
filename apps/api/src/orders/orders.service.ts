@@ -264,25 +264,34 @@ export class OrdersService {
           },
         ],
       };
-      const init = await this.yengapay.initDirectPayment(paymentParams);
+      const paymentCountryCode = dto.paymentCountryCode ?? "BF";
+      const usesHostedCheckout = paymentCountryCode !== "BF";
+      const init = usesHostedCheckout
+        ? await this.yengapay.initCheckoutPayment(paymentParams)
+        : await this.yengapay.initDirectPayment(paymentParams);
+      const paymentIntentId = "id" in init ? init.id : init.paymentIntentId;
+      const expiresAt = init.expiresAt ? new Date(init.expiresAt) : null;
+      const availableOperators = "availableOperators" in init ? init.availableOperators : [];
+      const checkoutUrl = "checkoutPageUrlWithPaymentToken" in init ? init.checkoutPageUrlWithPaymentToken : undefined;
 
       await this.prisma.payment.create({
         data: {
           orderId: order.id,
           reference: order.id,
-          yengapayPaymentIntentId: init.paymentIntentId,
+          yengapayPaymentIntentId: paymentIntentId,
           amountXof: finalPriceXof.toString(),
-          expiresAt: new Date(init.expiresAt),
-          rawInitResponse: init as unknown as object,
+          expiresAt,
+          rawInitResponse: { ...init, selectedCountryCode: paymentCountryCode } as unknown as object,
         },
       });
 
       return {
         orderId: order.id,
-        expiresAt: init.expiresAt,
+        expiresAt: init.expiresAt ?? new Date(Date.now() + 30 * 60_000).toISOString(),
         priceClientXof: finalPriceXof.toString(),
         discountXof: discountXof.toString(),
-        availableOperators: init.availableOperators,
+        availableOperators,
+        ...(checkoutUrl ? { checkoutUrl } : {}),
       };
     } catch (err) {
       // No payment intent exists yet on Yengapay's side for this order — safe to roll back.
@@ -323,8 +332,10 @@ export class OrdersService {
     const init = existing.payment.rawInitResponse as {
       availableOperators: unknown;
       checkoutPageUrlWithPaymentToken?: string;
+      selectedCountryCode?: string;
     } | null;
     if (!init) return null;
+    if ((init.selectedCountryCode ?? "BF") !== (dto.paymentCountryCode ?? "BF")) return null;
 
     return {
       orderId: existing.id,
