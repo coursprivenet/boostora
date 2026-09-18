@@ -29,13 +29,23 @@ function isGenericNoRefillWarning(warning: string | null): boolean {
 }
 
 export function ServiceCard({ item }: { item: CatalogItem }) {
+  const serviceInfo = [
+    `Commande de ${item.minQuantity.toLocaleString("fr-FR")} à ${item.maxQuantity.toLocaleString("fr-FR")} unités.`,
+    item.refillSupported
+      ? "Remplacement inclus : une baisse éventuelle est prise en charge selon les conditions du service."
+      : "Sans remplacement automatique en cas de baisse ultérieure.",
+    item.dripfeedSupported ? "Livraison échelonnée disponible pour répartir la commande." : null,
+  ].filter(Boolean).join(" ");
   return (
     <div className="flex flex-col justify-between rounded-xl2 border border-ink-200 bg-white p-5 shadow-[0_3px_12px_rgba(10,11,15,0.04)] transition-all hover:-translate-y-0.5 hover:border-ink-900 hover:shadow-card">
       <div>
         <span className="inline-flex items-center rounded-full bg-brand-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-ink-900">
           {displayPlatform(item.platform)}
         </span>
-        <h3 className="mt-3 line-clamp-2 text-base font-semibold leading-snug text-ink-900">{displayName(item.name)}</h3>
+        <div className="mt-3 flex items-start gap-1.5">
+          <h3 className="line-clamp-2 text-base font-semibold leading-snug text-ink-900">{displayName(item.name)}</h3>
+          <Tooltip text={serviceInfo} />
+        </div>
         {item.description && (
           <p className="mt-1.5 line-clamp-2 text-sm text-ink-500">{item.description}</p>
         )}
