@@ -74,6 +74,7 @@ export default function AdminCatalogPage() {
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [pricePreviews, setPricePreviews] = useState<Record<string, CatalogAdminPricePreview>>({});
   const latestQuoteQuantity = useRef<Record<string, number>>({});
+  const formSectionRef = useRef<HTMLDivElement>(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -177,6 +178,8 @@ export default function AdminCatalogPage() {
       roundingStep: "",
       isVisible: entry.isVisible,
     });
+    // The editor lives above the card grid; bring it into view so the action is explicit.
+    requestAnimationFrame(() => formSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
   }
 
   async function handleSubmit() {
@@ -234,8 +237,16 @@ export default function AdminCatalogPage() {
 
   async function remove(entry: CatalogAdminItem) {
     if (!token) return;
-    await api.delete(`/catalog/${entry.id}`, token);
-    loadAll();
+    if (!window.confirm(`Supprimer « ${entry.name} » du catalogue ? Cette action est définitive.`)) return;
+    setBusy(true);
+    try {
+      await api.delete(`/catalog/${entry.id}`, token);
+      loadAll();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Suppression impossible");
+    } finally {
+      setBusy(false);
+    }
   }
 
   function quantityFor(entry: CatalogAdminItem) {
@@ -271,7 +282,7 @@ export default function AdminCatalogPage() {
       </div>
       {syncResult && <p className="mb-4 text-sm text-ink-500">{syncResult}</p>}
 
-      <div className="mb-8 rounded-xl2 border border-ink-100 bg-white p-5 shadow-soft">
+      <div ref={formSectionRef} className="mb-8 scroll-mt-6 rounded-xl2 border border-ink-100 bg-white p-5 shadow-soft">
         <h2 className="mb-4 text-sm font-semibold text-ink-900">
           {form.editingId ? "Modifier le service" : "Ajouter un service au catalogue"}
         </h2>
