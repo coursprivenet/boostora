@@ -24,6 +24,12 @@ export class CatalogController {
     return this.catalog.listAdmin();
   }
 
+  @Roles(UserRole.ADMIN)
+  @Get(":id/admin-price-preview")
+  adminPricePreview(@Param("id") id: string, @Query() query: PricePreviewQueryDto) {
+    return this.catalog.previewAdminPrice(id, query.quantity);
+  }
+
   @Public()
   @Get(":id")
   getPublicOne(@Param("id") id: string) {

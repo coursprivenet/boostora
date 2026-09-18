@@ -69,7 +69,7 @@ export class CatalogService {
    * unit price then multiplying it by an arbitrary quantity would compound the rounding
    * error instead of bounding it once, on the number the client actually pays.
    */
-  async computeOrderPrice(catalogServiceId: string, quantity: number) {
+  async computeOrderPrice(catalogServiceId: string, quantity: number, allowUnavailable = false) {
     const [service, fxRate] = await Promise.all([
       this.prisma.catalogService.findUnique({
         where: { id: catalogServiceId },
@@ -78,7 +78,7 @@ export class CatalogService {
       this.exchangeRate.getCurrentRate(),
     ]);
 
-    if (!service || !service.isVisible || !service.providerService.isActiveUpstream) {
+    if (!service || (!allowUnavailable && (!service.isVisible || !service.providerService.isActiveUpstream))) {
       throw new NotFoundException("Service indisponible");
     }
 
@@ -111,6 +111,21 @@ export class CatalogService {
       costProviderXof: price.costProviderXof.toDecimalPlaces(0),
       costProviderUsd: costUsdForOrder,
       marginXof: price.marginXof.toDecimalPlaces(0),
+    };
+  }
+
+  /** Admin-only quote: same quantity logic as checkout, with the actual FX cost. */
+  async previewAdminPrice(catalogServiceId: string, quantity: number) {
+    const [priced, costFxRate] = await Promise.all([
+      this.computeOrderPrice(catalogServiceId, quantity, true),
+      this.exchangeRate.getCurrentCostRate(),
+    ]);
+    const costProviderXof = priced.costProviderUsd.mul(costFxRate).toDecimalPlaces(0);
+    return {
+      quantity,
+      priceClientXof: priced.priceClientXof.toString(),
+      costProviderXof: costProviderXof.toString(),
+      marginXof: priced.priceClientXof.minus(costProviderXof).toDecimalPlaces(0).toString(),
     };
   }
 

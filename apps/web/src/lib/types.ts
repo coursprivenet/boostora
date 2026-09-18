@@ -188,6 +188,13 @@ export interface CatalogAdminItem {
   marginXof: string;
 }
 
+export interface CatalogAdminPricePreview {
+  quantity: number;
+  priceClientXof: string;
+  costProviderXof: string;
+  marginXof: string;
+}
+
 export interface UserRow {
   id: string;
   email: string;

@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRequireAdmin } from "@/lib/use-require-admin";
 import { api, ApiError } from "@/lib/api";
-import { CatalogAdminItem, Category, ProviderServiceRow } from "@/lib/types";
+import { CatalogAdminItem, CatalogAdminPricePreview, Category, ProviderServiceRow } from "@/lib/types";
 import { formatXof } from "@/lib/format";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
@@ -71,6 +71,9 @@ export default function AdminCatalogPage() {
   const [refillOnly, setRefillOnly] = useState(false);
   const [sort, setSort] = useState<"default" | "price-asc" | "price-desc" | "margin-asc" | "margin-desc">("default");
   const [page, setPage] = useState(1);
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [pricePreviews, setPricePreviews] = useState<Record<string, CatalogAdminPricePreview>>({});
+  const latestQuoteQuantity = useRef<Record<string, number>>({});
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -233,6 +236,29 @@ export default function AdminCatalogPage() {
     if (!token) return;
     await api.delete(`/catalog/${entry.id}`, token);
     loadAll();
+  }
+
+  function quantityFor(entry: CatalogAdminItem) {
+    return quantities[entry.id] ?? entry.referenceQuantity;
+  }
+
+  async function updateQuote(entry: CatalogAdminItem, requestedQuantity: number) {
+    if (!token || !Number.isFinite(requestedQuantity)) return;
+    const quantity = Math.max(entry.minQuantity, Math.min(entry.maxQuantity, Math.round(requestedQuantity)));
+    latestQuoteQuantity.current[entry.id] = quantity;
+    setQuantities((current) => ({ ...current, [entry.id]: quantity }));
+    try {
+      const preview = await api.get<CatalogAdminPricePreview>(
+        `/catalog/${entry.id}/admin-price-preview?quantity=${quantity}`,
+        token,
+      );
+      // A late response for an earlier slider position must not overwrite the latest quote.
+      setPricePreviews((current) => latestQuoteQuantity.current[entry.id] !== quantity
+        ? current
+        : { ...current, [entry.id]: preview });
+    } catch {
+      // The existing reference quote remains visible; validation stays server-side.
+    }
   }
 
   return (
@@ -455,10 +481,35 @@ export default function AdminCatalogPage() {
                     </button>
                   </div>
                   {entry.description && <p className="mt-3 line-clamp-2 text-sm text-ink-600">{entry.description}</p>}
+                  <div className="mt-4 rounded-lg bg-ink-50 p-3">
+                    <div className="mb-2 flex items-center justify-between gap-3 text-xs text-ink-500">
+                      <span>Simuler une quantité</span>
+                      <input
+                        aria-label={`Quantité pour ${entry.name}`}
+                        type="number"
+                        min={entry.minQuantity}
+                        max={entry.maxQuantity}
+                        value={quantityFor(entry)}
+                        onChange={(event) => updateQuote(entry, Number(event.target.value))}
+                        className="w-24 rounded-md border border-ink-200 bg-white px-2 py-1 text-right text-sm font-semibold text-ink-900"
+                      />
+                    </div>
+                    <input
+                      aria-label={`Curseur de quantité pour ${entry.name}`}
+                      type="range"
+                      min={entry.minQuantity}
+                      max={entry.maxQuantity}
+                      step={1}
+                      value={quantityFor(entry)}
+                      onChange={(event) => updateQuote(entry, Number(event.target.value))}
+                      className="w-full accent-brand-500"
+                    />
+                    <div className="mt-1 flex justify-between text-[11px] text-ink-400"><span>{entry.minQuantity.toLocaleString("fr-FR")}</span><span>{entry.maxQuantity.toLocaleString("fr-FR")}</span></div>
+                  </div>
                   <div className="mt-4 grid grid-cols-3 gap-2 border-y border-ink-100 py-3 text-xs">
-                    <div><p className="text-ink-400">Prix · {entry.referenceQuantity.toLocaleString("fr-FR")} unités</p><p className="mt-1 font-semibold text-ink-900">{formatXof(entry.priceClientXof)}</p></div>
-                    <div><p className="text-ink-400">Coût réel</p><p className="mt-1 font-medium text-ink-700">{formatXof(entry.costProviderXof)}</p></div>
-                    <div><p className="text-ink-400">Marge brute</p><p className="mt-1 font-semibold text-emerald-700">{formatXof(entry.marginXof)}</p></div>
+                    <div><p className="text-ink-400">Prix client</p><p className="mt-1 font-semibold text-ink-900">{formatXof(pricePreviews[entry.id]?.priceClientXof ?? entry.priceClientXof)}</p></div>
+                    <div><p className="text-ink-400">Coût réel</p><p className="mt-1 font-medium text-ink-700">{formatXof(pricePreviews[entry.id]?.costProviderXof ?? entry.costProviderXof)}</p></div>
+                    <div><p className="text-ink-400">Marge brute</p><p className="mt-1 font-semibold text-emerald-700">{formatXof(pricePreviews[entry.id]?.marginXof ?? entry.marginXof)}</p></div>
                   </div>
                   <div className="mt-4 flex items-center gap-3">
                     {entry.provider.refillSupported && <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700">Refill</span>}
