@@ -374,14 +374,6 @@ export default function CheckoutPage() {
     setStep({ kind: "operator", created });
   }
 
-  const paymentSelection = step.kind === "country" || step.kind === "operator" ? step.created : null;
-  const paymentCountries = paymentSelection
-    ? Array.from(new Map(paymentSelection.availableOperators.map((operator) => [operator.countryCode, {
-      code: operator.countryCode,
-      name: operator.countryName,
-      flagUrl: operator.flagUrl,
-    }])).values())
-    : [];
   const displayedOperators = step.kind === "operator" && paymentCountryCode
     ? step.created.availableOperators.filter((operator) => operator.countryCode === paymentCountryCode)
     : step.kind === "operator" ? step.created.availableOperators : [];
@@ -408,6 +400,24 @@ export default function CheckoutPage() {
       window.location.assign(checkoutUrl);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Le paiement crypto est temporairement indisponible");
+      setBusy(false);
+    }
+  }
+
+  async function applyPaymentCountryChange(created: CreateOrderResponse) {
+    if (!token || !paymentCountryCode) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const updated = await api.post<CreateOrderResponse>(
+        `/orders/${created.orderId}/payment/change-country`,
+        { paymentCountryCode },
+        token,
+      );
+      setStep({ kind: "operator", created: updated });
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Impossible de changer de pays");
+    } finally {
       setBusy(false);
     }
   }
@@ -760,26 +770,17 @@ export default function CheckoutPage() {
               <div className="flex flex-col gap-4">
                 <div>
                   <p className="text-lg font-semibold text-ink-900">Choisis ton pays de paiement</p>
-                  <p className="mt-1 text-sm text-ink-500">Les moyens disponibles dépendent du pays sélectionné.</p>
                 </div>
-                <div className="grid gap-2">
-                  {paymentCountries.map((country) => (
-                    <button
-                      key={country.code}
-                      type="button"
-                      onClick={() => setPaymentCountryCode(country.code)}
-                      className={`flex items-center gap-3 rounded-xl2 border-2 p-4 text-left transition-colors ${paymentCountryCode === country.code ? "border-ink-900 bg-brand-300/20" : "border-ink-200 bg-white hover:border-ink-900"}`}
-                    >
-                      {country.flagUrl && <img src={country.flagUrl} alt="" className="h-5 w-7 rounded-sm object-cover" />}
-                      <span className="font-medium text-ink-900">{country.name}</span>
-                    </button>
-                  ))}
-                </div>
-                {paymentCountries.length === 1 && (
-                  <p className="text-xs text-ink-500">YengaPay retourne actuellement uniquement ce pays pour cette intention de paiement.</p>
-                )}
+                <select
+                  value={paymentCountryCode ?? ""}
+                  onChange={(e) => setPaymentCountryCode(e.target.value || null)}
+                  className="h-11 w-full rounded-xl2 border-2 border-ink-900 bg-white px-3 text-sm text-ink-900 outline-none focus:ring-2 focus:ring-brand-500"
+                >
+                  <option value="" disabled>Choisissez votre pays</option>
+                  {PAYMENT_COUNTRIES.map((country) => <option key={country.code} value={country.code}>{country.name}</option>)}
+                </select>
                 {error && <p className="text-sm text-rose-600">{error}</p>}
-                <Button disabled={!paymentCountryCode} onClick={() => setStep({ kind: "operator", created: step.created })}>
+                <Button loading={busy} disabled={!paymentCountryCode} onClick={() => applyPaymentCountryChange(step.created)}>
                   Voir les moyens de paiement
                 </Button>
               </div>

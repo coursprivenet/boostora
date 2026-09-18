@@ -498,6 +498,76 @@ export class OrdersService {
     }
   }
 
+  /** Replaces an unpaid payment intent when the customer changes country. */
+  async changePaymentCountry(userId: string, orderId: string, paymentCountryCode: "BF" | "CI" | "BJ" | "OTHER") {
+    const { order, payment } = await this.getPayableOrderOrThrow(userId, orderId);
+    const expiresAt = new Date(Date.now() + 30 * 60_000);
+    if (paymentCountryCode === "OTHER") {
+      await this.prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          yengapayPaymentIntentId: null,
+          operatorCode: null,
+          expiresAt,
+          rawInitResponse: { selectedCountryCode: paymentCountryCode } as unknown as object,
+        },
+      });
+      return {
+        orderId: order.id,
+        expiresAt: expiresAt.toISOString(),
+        priceClientXof: order.priceClientXof.toString(),
+        discountXof: order.discountXof.toString(),
+        availableOperators: [],
+      };
+    }
+
+    const catalogService = await this.prisma.catalogService.findUnique({
+      where: { id: order.catalogServiceId },
+      select: { name: true, description: true },
+    });
+    if (!catalogService) throw new NotFoundException("Service introuvable");
+    const reference = `${order.id}-${paymentCountryCode}-${Date.now()}`;
+    const params = {
+      amount: order.priceClientXof.toNumber(),
+      reference,
+      articles: [{
+        title: catalogService.name,
+        description: catalogService.description ?? catalogService.name,
+        price: order.priceClientXof.toNumber(),
+      }],
+    };
+    try {
+      const init = paymentCountryCode === "BF"
+        ? await this.yengapay.initDirectPayment(params)
+        : await this.yengapay.initCheckoutPayment(params);
+      const availableOperators = "availableOperators" in init ? init.availableOperators : [];
+      const checkoutUrl = "checkoutPageUrlWithPaymentToken" in init ? init.checkoutPageUrlWithPaymentToken : undefined;
+      await this.prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          reference,
+          yengapayPaymentIntentId: "id" in init ? init.id : init.paymentIntentId,
+          operatorCode: null,
+          expiresAt: init.expiresAt ? new Date(init.expiresAt) : expiresAt,
+          rawInitResponse: { ...init, selectedCountryCode: paymentCountryCode } as unknown as object,
+        },
+      });
+      return {
+        orderId: order.id,
+        expiresAt: init.expiresAt ?? expiresAt.toISOString(),
+        priceClientXof: order.priceClientXof.toString(),
+        discountXof: order.discountXof.toString(),
+        availableOperators,
+        ...(checkoutUrl ? { checkoutUrl } : {}),
+      };
+    } catch (err) {
+      if (err instanceof YengapayApiError) {
+        throw new BadRequestException(`Impossible de changer de pays : ${err.message}`);
+      }
+      throw err;
+    }
+  }
+
   async sendOtp(userId: string, orderId: string, dto: SendOtpDto) {
     const { payment } = await this.getPayableOrderOrThrow(userId, orderId);
 

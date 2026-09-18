@@ -10,6 +10,7 @@ import { CreateOrderDto } from "./dto/create-order.dto";
 import { SendOtpDto } from "./dto/send-otp.dto";
 import { ConfirmPaymentDto } from "./dto/confirm-payment.dto";
 import { RefundOrderDto } from "./dto/refund-order.dto";
+import { ChangePaymentCountryDto } from "./dto/change-payment-country.dto";
 
 @Controller("orders")
 export class OrdersController {
@@ -70,6 +71,15 @@ export class OrdersController {
   @Post(":id/payment/crypto")
   cryptoPayment(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string) {
     return this.orders.createCryptomusPayment(user.id, id);
+  }
+
+  @Post(":id/payment/change-country")
+  changePaymentCountry(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() dto: ChangePaymentCountryDto,
+  ) {
+    return this.orders.changePaymentCountry(user.id, id, dto.paymentCountryCode);
   }
 
   @Post(":id/payment/send-otp")
