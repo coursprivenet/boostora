@@ -52,7 +52,7 @@ export function ServiceCard({ item }: { item: CatalogItem }) {
           </p>
         )}
         <p className="mt-4 text-xs text-ink-400">
-          Min {item.minQuantity.toLocaleString("fr-FR")} · Max {item.maxQuantity.toLocaleString("fr-FR")}
+          Commande possible : {item.minQuantity.toLocaleString("fr-FR")} à {item.maxQuantity.toLocaleString("fr-FR")} unités
         </p>
       </div>
       <div className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t border-ink-100 pt-4">

@@ -204,22 +204,32 @@ export class CatalogService {
 
     return services.map((s) => {
       const minQuantity = s.minQuantityOverride ?? s.providerService.minQuantity;
-      // A flat "/1000" reference price is meaningless for comparing cards at a glance —
-      // show the price for a realistic small order instead: 200 units, or the service's
-      // own minimum when that's already above 200.
-      const referenceQuantity = s.providerService.unit === "per_1000" ? Math.max(200, minQuantity) : 1;
-      const quantityFactor =
-        s.providerService.unit === "per_1000" ? new Decimal(referenceQuantity).div(1000) : new Decimal(1);
-
-      const price = computePrice({
+      const priceFor = (quantity: number) => computePrice({
         pricingRuleType: s.pricingRuleType,
         pricingValue: s.pricingValue.toString(),
-        costUsd: new Decimal(s.providerService.rateUsd.toString()).mul(quantityFactor),
+        costUsd: new Decimal(s.providerService.rateUsd.toString()).mul(
+          s.providerService.unit === "per_1000" ? new Decimal(quantity).div(1000) : 1,
+        ),
         fxRateXofPerUsd: fxRate,
         roundingStep: s.roundingStep?.toString(),
         minPriceXof: s.minPriceXof?.toString(),
         maxPriceXof: s.maxPriceXof?.toString(),
       });
+      // Cards quote the provider's actual minimum. If that small order costs under
+      // the Mobile Money floor, grow the displayed quantity to what 100 XOF buys.
+      let referenceQuantity = s.providerService.unit === "per_1000" ? minQuantity : 1;
+      let price = priceFor(referenceQuantity);
+      if (s.providerService.unit === "per_1000" && price.priceClientXof.lt(100)) {
+        let low = minQuantity;
+        let high = s.maxQuantityOverride ?? s.providerService.maxQuantity;
+        while (low < high) {
+          const middle = Math.floor((low + high) / 2);
+          if (priceFor(middle).priceClientXof.gte(100)) high = middle;
+          else low = middle + 1;
+        }
+        referenceQuantity = low;
+        price = priceFor(referenceQuantity);
+      }
 
       return {
         id: s.id,
@@ -259,20 +269,30 @@ export class CatalogService {
     }
 
     const minQuantity = service.minQuantityOverride ?? service.providerService.minQuantity;
-    const referenceQuantity =
-      service.providerService.unit === "per_1000" ? Math.max(200, minQuantity) : 1;
-    const quantityFactor =
-      service.providerService.unit === "per_1000" ? new Decimal(referenceQuantity).div(1000) : new Decimal(1);
-
-    const price = computePrice({
+    const priceFor = (quantity: number) => computePrice({
       pricingRuleType: service.pricingRuleType,
       pricingValue: service.pricingValue.toString(),
-      costUsd: new Decimal(service.providerService.rateUsd.toString()).mul(quantityFactor),
+      costUsd: new Decimal(service.providerService.rateUsd.toString()).mul(
+        service.providerService.unit === "per_1000" ? new Decimal(quantity).div(1000) : 1,
+      ),
       fxRateXofPerUsd: fxRate,
       roundingStep: service.roundingStep?.toString(),
       minPriceXof: service.minPriceXof?.toString(),
       maxPriceXof: service.maxPriceXof?.toString(),
     });
+    let referenceQuantity = service.providerService.unit === "per_1000" ? minQuantity : 1;
+    let price = priceFor(referenceQuantity);
+    if (service.providerService.unit === "per_1000" && price.priceClientXof.lt(100)) {
+      let low = minQuantity;
+      let high = service.maxQuantityOverride ?? service.providerService.maxQuantity;
+      while (low < high) {
+        const middle = Math.floor((low + high) / 2);
+        if (priceFor(middle).priceClientXof.gte(100)) high = middle;
+        else low = middle + 1;
+      }
+      referenceQuantity = low;
+      price = priceFor(referenceQuantity);
+    }
 
     const dripfeed = extractDripfeedLimits(service.providerService.fieldsSchema);
     return {
