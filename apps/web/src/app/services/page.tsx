@@ -54,10 +54,13 @@ const CATEGORY_PRIORITY = [
 ];
 
 function defaultCatalogRank(service: CatalogItem): number {
-  if (/\bbot\b/i.test(service.name)) return 10_000;
   const categoryRank = CATEGORY_PRIORITY.indexOf(service.category.slug);
   if (categoryRank !== -1) return categoryRank;
   return 100 + typePriorityRank(typeOf(service.category.name));
+}
+
+function isBotService(service: CatalogItem): boolean {
+  return /\bbot\b/i.test(service.name);
 }
 
 const COUNTRY_TOKENS = [
@@ -130,9 +133,15 @@ export default function ServicesPage() {
     }
     if (refillOnly) list = list.filter((s) => !s.riskWarning);
     if (sort === "default") {
-      list = [...list].sort(
-        (a, b) => defaultCatalogRank(a) - defaultCatalogRank(b),
-      );
+      list = [...list].sort((a, b) => {
+        // Bots always remain at the very end. For all regular offers, a refill is
+        // the first quality signal, then the editorial category order decides.
+        const botDiff = Number(isBotService(a)) - Number(isBotService(b));
+        if (botDiff !== 0) return botDiff;
+        const refillDiff = Number(a.riskWarning) - Number(b.riskWarning);
+        if (refillDiff !== 0) return refillDiff;
+        return defaultCatalogRank(a) - defaultCatalogRank(b);
+      });
     } else {
       list = [...list].sort((a, b) => {
         const diff = Number(a.priceClientXof) - Number(b.priceClientXof);
