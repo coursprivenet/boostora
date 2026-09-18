@@ -70,4 +70,11 @@ export class UpsertCatalogServiceDto {
   @IsOptional()
   @IsInt()
   maxQuantityOverride?: number;
+
+  /** Admin convenience input: desired client price at the service's minimum quantity. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @IsPositive()
+  referencePriceXof?: number;
 }

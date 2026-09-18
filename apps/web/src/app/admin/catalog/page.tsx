@@ -21,6 +21,9 @@ interface FormState {
   pricingValue: string;
   roundingStep: string;
   minPriceXof: string;
+  referenceQuantity: number;
+  referencePriceXof: string;
+  referencePriceEdited: boolean;
   isVisible: boolean;
 }
 
@@ -35,6 +38,9 @@ const EMPTY_FORM: FormState = {
   pricingValue: "60",
   roundingStep: "",
   minPriceXof: "100",
+  referenceQuantity: 0,
+  referencePriceXof: "",
+  referencePriceEdited: false,
   isVisible: true,
 };
 
@@ -185,6 +191,9 @@ export default function AdminCatalogPage() {
       pricingValue: entry.pricingValue,
       roundingStep: entry.roundingStep ?? "",
       minPriceXof: entry.minPriceXof ?? "",
+      referenceQuantity: entry.referenceQuantity,
+      referencePriceXof: entry.priceClientXof,
+      referencePriceEdited: false,
       isVisible: entry.isVisible,
     });
     setError(null);
@@ -225,6 +234,7 @@ export default function AdminCatalogPage() {
               : {}),
             ...(form.roundingStep ? { roundingStep: Number(form.roundingStep) } : {}),
             ...(form.minPriceXof ? { minPriceXof: Number(form.minPriceXof) } : {}),
+            ...(form.referencePriceEdited ? { referencePriceXof: Number(form.referencePriceXof) } : {}),
           },
           token,
         );
@@ -430,17 +440,18 @@ export default function AdminCatalogPage() {
             onChange={(e) => setForm((f) => ({ ...f, pricingValue: e.target.value }))}
             placeholder={form.editingId ? "laisser vide pour ne pas changer" : undefined}
           />
-          <div>
-            <Input
-              label="Prix minimum de la commande (FCFA)"
-              type="number"
-              min="1"
-              value={form.minPriceXof}
-              onChange={(e) => setForm((f) => ({ ...f, minPriceXof: e.target.value }))}
-              placeholder="ex : 100"
-            />
-            <p className="mt-1 text-xs text-ink-500">Le client ne paiera jamais moins que ce montant, même pour la quantité minimale.</p>
-          </div>
+          {form.editingId && (
+            <div>
+              <Input
+                label={`Prix affiché pour ${form.referenceQuantity.toLocaleString("fr-FR")} unités (FCFA)`}
+                type="number"
+                min="1"
+                value={form.referencePriceXof}
+                onChange={(e) => setForm((f) => ({ ...f, referencePriceXof: e.target.value, referencePriceEdited: true }))}
+              />
+              <p className="mt-1 text-xs text-ink-500">C’est le prix visible dans le catalogue public. Le modifier ajuste automatiquement la règle de prix de ce service.</p>
+            </div>
+          )}
           <Input
             label="Arrondi (XOF, optionnel)"
             type="number"

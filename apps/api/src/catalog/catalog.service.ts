@@ -49,8 +49,30 @@ export class CatalogService {
       providerService,
     );
 
-    const updated = await this.prisma.catalogService.update({ where: { id }, data: dto });
-    await this.auditLog.record(actorUserId, "catalog.update", id, dto as Record<string, unknown>);
+    const { referencePriceXof, ...updateData } = dto;
+    if (referencePriceXof != null) {
+      const minQuantity = updateData.minQuantityOverride ?? existing.minQuantityOverride ?? providerService.minQuantity;
+      const costUsdAtMinimum = new Decimal(providerService.rateUsd.toString()).mul(
+        providerService.unit === "per_1000" ? new Decimal(minQuantity).div(1000) : 1,
+      );
+      const commercialCostXof = costUsdAtMinimum.mul(await this.exchangeRate.getCurrentRate());
+      const pricingRuleType = updateData.pricingRuleType ?? existing.pricingRuleType;
+      const referencePrice = new Decimal(referencePriceXof);
+      const pricingValue = pricingRuleType === "PERCENT_MARGIN"
+        ? referencePrice.div(commercialCostXof).minus(1).mul(100)
+        : pricingRuleType === "FIXED_MARGIN"
+          ? referencePrice.minus(commercialCostXof)
+          : referencePrice;
+      Object.assign(updateData, {
+        pricingRuleType,
+        pricingValue: pricingValue.toNumber(),
+        // This preserves the requested amount if a small-order floor would otherwise win.
+        minPriceXof: referencePrice.toNumber(),
+      });
+    }
+
+    const updated = await this.prisma.catalogService.update({ where: { id }, data: updateData });
+    await this.auditLog.record(actorUserId, "catalog.update", id, { ...updateData, referencePriceXof });
     return updated;
   }
 
