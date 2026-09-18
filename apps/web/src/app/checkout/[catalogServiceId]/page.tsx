@@ -18,7 +18,6 @@ const CRYPTO_PAYMENTS_ACTIVE = false;
 const PAYMENT_COUNTRIES = [
   { code: "BF", name: "Burkina Faso" },
   { code: "CI", name: "Côte d’Ivoire" },
-  { code: "BJ", name: "Bénin" },
   { code: "OTHER", name: "Autre pays" },
 ] as const;
 
@@ -813,14 +812,14 @@ export default function CheckoutPage() {
                     </span>
                   </button>
                 ))}
-                {paymentCountryCode !== "OTHER" && (
+                {paymentCountryCode === "CI" && (
                   <button
                     onClick={() => chooseHostedCheckout(step.created.orderId)}
                     disabled={busy}
                     className="flex items-center gap-3 rounded-xl2 border-2 border-ink-900 px-4 py-3 text-left transition-colors hover:bg-brand-300/20 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-ink-900 bg-white p-1"><img src="/payments/card.svg" alt="" className="h-full w-full" /></span>
-                    <span className="flex-1"><span className="block font-medium text-ink-900">Carte bancaire / autres moyens</span><span className="block text-xs text-ink-400">Paiement sécurisé par YengaPay</span></span>
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-ink-900 bg-white text-sm font-bold">M</span>
+                    <span className="flex-1"><span className="block font-medium text-ink-900">Payer par Mobile Money</span><span className="block text-xs text-ink-400">Choisissez votre opérateur</span></span>
                   </button>
                 )}
                 <button
