@@ -13,9 +13,10 @@ import { Tooltip } from "@/components/Tooltip";
 
 const SLIDER_STEPS = 1000;
 const PAYMENT_COUNTRIES = [
-  { code: "BF", name: "Burkina Faso", flagUrl: "https://flagcdn.com/w40/bf.png", description: "Paiement Mobile Money directement dans Wassago" },
-  { code: "CI", name: "Côte d’Ivoire", flagUrl: "https://flagcdn.com/w40/ci.png", description: "Paiement sécurisé via le checkout YengaPay" },
-  { code: "BJ", name: "Bénin", flagUrl: "https://flagcdn.com/w40/bj.png", description: "Paiement sécurisé via le checkout YengaPay" },
+  { code: "BF", name: "Burkina Faso" },
+  { code: "CI", name: "Côte d’Ivoire" },
+  { code: "BJ", name: "Bénin" },
+  { code: "OTHER", name: "Autre pays" },
 ] as const;
 
 /** Cubic curve: most of the slider's travel maps to the low end of the range, where
@@ -352,10 +353,6 @@ export default function CheckoutPage() {
         },
         token,
       );
-      if (created.checkoutUrl) {
-        window.location.assign(created.checkoutUrl);
-        return;
-      }
       openCountrySelection(created);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Impossible de créer la commande");
@@ -370,8 +367,8 @@ export default function CheckoutPage() {
   }
 
   function openCountrySelection(created: CreateOrderResponse) {
-    setPaymentCountryCode(created.availableOperators[0]?.countryCode ?? null);
-    setStep({ kind: "country", created });
+    setPaymentCountryCode((current) => current ?? created.availableOperators[0]?.countryCode ?? "OTHER");
+    setStep({ kind: "operator", created });
   }
 
   const paymentSelection = step.kind === "country" || step.kind === "operator" ? step.created : null;
@@ -395,6 +392,19 @@ export default function CheckoutPage() {
       window.location.assign(checkoutUrl);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Impossible d'ouvrir le paiement sécurisé");
+      setBusy(false);
+    }
+  }
+
+  async function chooseCryptomusPayment(orderId: string) {
+    if (!token) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const { checkoutUrl } = await api.post<{ checkoutUrl: string }>(`/orders/${orderId}/payment/crypto`, {}, token);
+      window.location.assign(checkoutUrl);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Le paiement crypto est temporairement indisponible");
       setBusy(false);
     }
   }
@@ -700,30 +710,15 @@ export default function CheckoutPage() {
 
                 <fieldset>
                   <legend className="mb-2 text-sm font-medium text-ink-900">Pays de paiement</legend>
-                  <div className="grid gap-2 sm:grid-cols-3">
-                    {PAYMENT_COUNTRIES.map((country) => (
-                      <label
-                        key={country.code}
-                        className={`flex cursor-pointer items-start gap-2 rounded-xl2 border-2 p-3 transition-colors ${paymentCountryCode === country.code ? "border-ink-900 bg-brand-300/20" : "border-ink-200 bg-white hover:border-ink-900"}`}
-                      >
-                        <input
-                          type="radio"
-                          name="payment-country"
-                          value={country.code}
-                          checked={paymentCountryCode === country.code}
-                          onChange={() => setPaymentCountryCode(country.code)}
-                          className="mt-1"
-                        />
-                        <span>
-                          <span className="flex items-center gap-1.5 font-medium text-ink-900">
-                            <img src={country.flagUrl} alt="" className="h-3.5 w-5 rounded-sm object-cover" />
-                            {country.name}
-                          </span>
-                          <span className="mt-1 block text-xs leading-snug text-ink-500">{country.description}</span>
-                        </span>
-                      </label>
-                    ))}
-                  </div>
+                  <select
+                    value={paymentCountryCode ?? ""}
+                    onChange={(e) => setPaymentCountryCode(e.target.value || null)}
+                    className="h-11 w-full rounded-xl2 border-2 border-ink-900 bg-white px-3 text-sm text-ink-900 outline-none focus:ring-2 focus:ring-brand-500"
+                  >
+                    <option value="" disabled>Choisissez votre pays</option>
+                    {PAYMENT_COUNTRIES.map((country) => <option key={country.code} value={country.code}>{country.name}</option>)}
+                  </select>
+                  <p className="mt-2 text-xs text-ink-500">Les moyens disponibles changent selon le pays. Le paiement crypto est disponible quel que soit le pays.</p>
                 </fieldset>
 
                 <label className="flex items-start gap-2 text-sm text-ink-600">
@@ -798,7 +793,7 @@ export default function CheckoutPage() {
                   <p className="text-sm text-emerald-600">-{formatXof(step.created.discountXof)} appliqué</p>
                 )}
                 <div className="flex items-center justify-between rounded-lg bg-ink-50 px-3 py-2 text-xs text-ink-600">
-                  <span>Pays : <strong className="text-ink-900">{paymentCountries.find((country) => country.code === paymentCountryCode)?.name}</strong></span>
+                  <span>Pays : <strong className="text-ink-900">{PAYMENT_COUNTRIES.find((country) => country.code === paymentCountryCode)?.name}</strong></span>
                   <button type="button" onClick={() => setStep({ kind: "country", created: step.created })} className="font-medium underline hover:text-ink-900">Changer</button>
                 </div>
                 <p className="mt-1 text-sm font-medium text-ink-700">Choisis ton moyen de paiement :</p>
@@ -815,13 +810,23 @@ export default function CheckoutPage() {
                     </span>
                   </button>
                 ))}
+                {paymentCountryCode !== "OTHER" && (
+                  <button
+                    onClick={() => chooseHostedCheckout(step.created.orderId)}
+                    disabled={busy}
+                    className="flex items-center gap-3 rounded-xl2 border-2 border-ink-900 px-4 py-3 text-left transition-colors hover:bg-brand-300/20 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-ink-900 bg-white p-1"><img src="/payments/card.svg" alt="" className="h-full w-full" /></span>
+                    <span className="flex-1"><span className="block font-medium text-ink-900">Carte bancaire / autres moyens</span><span className="block text-xs text-ink-400">Paiement sécurisé par YengaPay</span></span>
+                  </button>
+                )}
                 <button
-                  onClick={() => chooseHostedCheckout(step.created.orderId)}
+                  onClick={() => chooseCryptomusPayment(step.created.orderId)}
                   disabled={busy}
                   className="flex items-center gap-3 rounded-xl2 border-2 border-ink-900 px-4 py-3 text-left transition-colors hover:bg-brand-300/20 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-ink-900 bg-white p-1"><img src="/payments/card.svg" alt="" className="h-full w-full" /></span>
-                  <span className="flex-1"><span className="block font-medium text-ink-900">Carte bancaire / PayPal</span><span className="block text-xs text-ink-400">Paiement sécurisé par YengaPay</span></span>
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-ink-900 bg-white text-lg">₮</span>
+                  <span className="flex-1"><span className="block font-medium text-ink-900">Payer en crypto</span><span className="block text-xs text-ink-400">USDT sur TRON depuis votre wallet</span></span>
                 </button>
                 {error && <p className="text-sm text-rose-600">{error}</p>}
               </div>

@@ -11,6 +11,8 @@ import { PrismaService } from "../prisma/prisma.service";
 import { CatalogService } from "../catalog/catalog.service";
 import { YengapayClient } from "../yengapay/yengapay.client";
 import { YengapayApiError, YengapayPaymentWebhook } from "../yengapay/yengapay.types";
+import { CryptomusClient } from "../cryptomus/cryptomus.client";
+import { CryptomusApiError, CryptomusPaymentWebhook } from "../cryptomus/cryptomus.types";
 import { PanelFollowsClient } from "../panelfollows/panelfollows.client";
 import { PanelFollowsApiError } from "../panelfollows/panelfollows.types";
 import { mapProviderOrderStatus } from "../panelfollows/order-status-mapper";
@@ -44,6 +46,7 @@ export class OrdersService {
     private readonly prisma: PrismaService,
     private readonly catalog: CatalogService,
     private readonly yengapay: YengapayClient,
+    private readonly cryptomus: CryptomusClient,
     private readonly panelFollows: PanelFollowsClient,
     private readonly auditLog: AuditLogService,
     private readonly coupons: CouponsService,
@@ -265,6 +268,25 @@ export class OrdersService {
         ],
       };
       const paymentCountryCode = dto.paymentCountryCode ?? "BF";
+      if (paymentCountryCode === "OTHER") {
+        const expiresAt = new Date(Date.now() + 30 * 60_000);
+        await this.prisma.payment.create({
+          data: {
+            orderId: order.id,
+            reference: order.id,
+            amountXof: finalPriceXof.toString(),
+            expiresAt,
+            rawInitResponse: { selectedCountryCode: paymentCountryCode } as unknown as object,
+          },
+        });
+        return {
+          orderId: order.id,
+          expiresAt: expiresAt.toISOString(),
+          priceClientXof: finalPriceXof.toString(),
+          discountXof: discountXof.toString(),
+          availableOperators: [],
+        };
+      }
       const usesHostedCheckout = paymentCountryCode !== "BF";
       const init = usesHostedCheckout
         ? await this.yengapay.initCheckoutPayment(paymentParams)
@@ -425,6 +447,57 @@ export class OrdersService {
     }
   }
 
+  /** Opens a Cryptomus invoice for an existing unpaid order. The YengaPay intent, if
+   * any, remains unpaid and is never treated as success after this provider switch. */
+  async createCryptomusPayment(userId: string, orderId: string) {
+    const { order, payment } = await this.getPayableOrderOrThrow(userId, orderId);
+    const existing = payment.rawInitResponse as { provider?: string; checkoutUrl?: string } | null;
+    if (existing?.provider === "CRYPTOMUS" && existing.checkoutUrl) {
+      return { checkoutUrl: existing.checkoutUrl };
+    }
+
+    const amountUsd = new Decimal(order.priceClientXof.toString())
+      .div(order.fxRateUsed.toString())
+      .toDecimalPlaces(2, Decimal.ROUND_UP)
+      .toFixed(2);
+    const appUrl = process.env.APP_URL ?? "https://wassago.com";
+    const callbackUrl = process.env.CRYPTOMUS_WEBHOOK_URL;
+    if (!callbackUrl) {
+      throw new BadRequestException("Le paiement crypto n'est pas encore configuré");
+    }
+
+    try {
+      const invoice = await this.cryptomus.createInvoice({
+        amountUsd,
+        orderId: order.id,
+        callbackUrl,
+        returnUrl: `${appUrl}/dashboard/orders/${order.id}`,
+        successUrl: `${appUrl}/dashboard/orders/${order.id}`,
+      });
+      await this.prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          yengapayPaymentIntentId: null,
+          operatorCode: "CRYPTO_USDT_TRC20",
+          expiresAt: invoice.expired_at ? new Date(invoice.expired_at) : new Date(Date.now() + 15 * 60_000),
+          rawInitResponse: {
+            provider: "CRYPTOMUS",
+            invoiceId: invoice.uuid,
+            checkoutUrl: invoice.url,
+            cryptoOrderId: invoice.order_id,
+            amountUsd,
+          } as unknown as object,
+        },
+      });
+      return { checkoutUrl: invoice.url };
+    } catch (err) {
+      if (err instanceof CryptomusApiError) {
+        throw new BadRequestException(`Impossible d'ouvrir le paiement crypto : ${err.message}`);
+      }
+      throw err;
+    }
+  }
+
   async sendOtp(userId: string, orderId: string, dto: SendOtpDto) {
     const { payment } = await this.getPayableOrderOrThrow(userId, orderId);
 
@@ -532,6 +605,10 @@ export class OrdersService {
       this.logger.warn(`Yengapay webhook for unknown reference=${reference}`);
       return { found: false as const };
     }
+    if ((payment.rawInitResponse as { provider?: string } | null)?.provider === "CRYPTOMUS") {
+      this.logger.warn(`Ignoring obsolete YengaPay webhook for Cryptomus order=${payment.orderId}`);
+      return { found: false as const };
+    }
 
     if (payment.status !== PaymentStatus.PAID) {
       await this.prisma.$transaction([
@@ -596,6 +673,59 @@ export class OrdersService {
     }
 
     await this.ensureSubmittedToProvider(payment.orderId);
+    return { found: true as const };
+  }
+
+  /**
+   * Cryptomus callback confirmation. The controller has already checked its MD5
+   * signature; this method additionally binds the invoice UUID to the order so a
+   * valid callback for another payment can never credit this order.
+   */
+  async confirmCryptomusPaymentFromWebhook(webhookBody: CryptomusPaymentWebhook) {
+    if (!webhookBody.is_final || !["paid", "paid_over"].includes(webhookBody.status)) {
+      return { found: false as const };
+    }
+    const orderId = webhookBody.order_id.replace(/^crypto-/, "");
+    const payment = await this.prisma.payment.findUnique({ where: { reference: orderId } });
+    const init = payment?.rawInitResponse as { provider?: string; invoiceId?: string } | null;
+    if (!payment || init?.provider !== "CRYPTOMUS" || init.invoiceId !== webhookBody.uuid) {
+      this.logger.warn(`Cryptomus webhook does not match a pending invoice=${webhookBody.uuid}`);
+      return { found: false as const };
+    }
+
+    if (payment.status !== PaymentStatus.PAID) {
+      await this.prisma.$transaction([
+        this.prisma.payment.update({
+          where: { id: payment.id },
+          data: {
+            status: PaymentStatus.PAID,
+            transactionId: webhookBody.txid ?? webhookBody.uuid,
+            rawWebhookPayload: webhookBody as unknown as object,
+          },
+        }),
+        this.prisma.order.update({
+          where: { id: payment.orderId },
+          data: { paymentStatus: PaymentStatus.PAID, orderStatus: OrderStatus.PAID, paidAt: new Date() },
+        }),
+      ]);
+      const order = await this.prisma.order.findUnique({
+        where: { id: payment.orderId },
+        select: { couponId: true, discountXof: true, userId: true },
+      });
+      if (order) {
+        await this.notifications.notify(
+          order.userId,
+          "order.paid",
+          "Paiement crypto confirmé",
+          "Ton paiement a été confirmé et ta commande va être transmise au fournisseur.",
+          `/dashboard/orders/${payment.orderId}`,
+        );
+        if (order.couponId) {
+          await this.coupons.recordRedemption(order.couponId, order.userId, payment.orderId, order.discountXof.toString());
+        }
+      }
+      await this.ensureSubmittedToProvider(payment.orderId);
+    }
     return { found: true as const };
   }
 

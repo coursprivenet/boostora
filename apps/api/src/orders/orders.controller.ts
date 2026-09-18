@@ -66,6 +66,12 @@ export class OrdersController {
     return this.orders.createHostedCheckout(user.id, id);
   }
 
+  /** Opens the provider-hosted Cryptomus invoice after the customer chooses crypto. */
+  @Post(":id/payment/crypto")
+  cryptoPayment(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string) {
+    return this.orders.createCryptomusPayment(user.id, id);
+  }
+
   @Post(":id/payment/send-otp")
   sendOtp(
     @CurrentUser() user: AuthenticatedUser,

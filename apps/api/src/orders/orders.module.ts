@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { CatalogModule } from "../catalog/catalog.module";
 import { YengapayModule } from "../yengapay/yengapay.module";
+import { CryptomusModule } from "../cryptomus/cryptomus.module";
 import { PanelFollowsModule } from "../panelfollows/panelfollows.module";
 import { AuditLogModule } from "../audit-log/audit-log.module";
 import { CouponsModule } from "../coupons/coupons.module";
@@ -13,6 +14,7 @@ import { ProviderReconciliationService } from "./provider-reconciliation.service
   imports: [
     CatalogModule,
     YengapayModule,
+    CryptomusModule,
     PanelFollowsModule,
     AuditLogModule,
     CouponsModule,

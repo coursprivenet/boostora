@@ -31,9 +31,9 @@ export class CreateOrderDto {
   @Equals(true)
   acceptedTerms!: boolean;
 
-  /** BF uses YengaPay Direct; CI and BJ use the enabled provider Checkout flow. */
+  /** BF uses YengaPay Direct; CI/BJ use Checkout. Other countries can use crypto. */
   @IsOptional()
-  @IsIn(["BF", "CI", "BJ"])
-  paymentCountryCode?: "BF" | "CI" | "BJ";
+  @IsIn(["BF", "CI", "BJ", "OTHER"])
+  paymentCountryCode?: "BF" | "CI" | "BJ" | "OTHER";
 
 }

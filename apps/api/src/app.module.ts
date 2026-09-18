@@ -14,6 +14,7 @@ import { CategoriesModule } from "./categories/categories.module";
 import { ProviderServicesModule } from "./provider-services/provider-services.module";
 import { CatalogModule } from "./catalog/catalog.module";
 import { YengapayModule } from "./yengapay/yengapay.module";
+import { CryptomusModule } from "./cryptomus/cryptomus.module";
 import { OrdersModule } from "./orders/orders.module";
 import { WebhooksModule } from "./webhooks/webhooks.module";
 import { UsersModule } from "./users/users.module";
@@ -40,6 +41,7 @@ import { NotificationsModule } from "./notifications/notifications.module";
     ProviderServicesModule,
     CatalogModule,
     YengapayModule,
+    CryptomusModule,
     OrdersModule,
     WebhooksModule,
     UsersModule,
