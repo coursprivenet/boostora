@@ -149,6 +149,7 @@ export class CatalogService {
           rateUsd: s.providerService.rateUsd.toString(),
           unit: s.providerService.unit,
           isActiveUpstream: s.providerService.isActiveUpstream,
+          refillSupported: s.providerService.refillSupported,
           minQuantity: s.providerService.minQuantity,
           maxQuantity: s.providerService.maxQuantity,
         },

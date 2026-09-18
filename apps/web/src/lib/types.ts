@@ -174,6 +174,7 @@ export interface CatalogAdminItem {
     rateUsd: string;
     unit: string;
     isActiveUpstream: boolean;
+    refillSupported: boolean;
     minQuantity: number;
     maxQuantity: number;
   };
