@@ -131,16 +131,19 @@ export default function ServicesPage() {
     if (targetingFilter !== "all") {
       list = list.filter((s) => isCountryTargeted(s.name) === (targetingFilter === "country"));
     }
-    if (refillOnly) list = list.filter((s) => !s.riskWarning);
+    if (refillOnly) list = list.filter((s) => s.refillSupported);
     if (sort === "default") {
       list = [...list].sort((a, b) => {
-        // Bots always remain at the very end. For all regular offers, a refill is
-        // the first quality signal, then the editorial category order decides.
+        // Bots always remain at the very end. Keep the storefront's editorial
+        // sequence, while putting refill variants before non-refill variants
+        // within each service family (followers, likes, views, etc.).
         const botDiff = Number(isBotService(a)) - Number(isBotService(b));
         if (botDiff !== 0) return botDiff;
-        const refillDiff = Number(a.riskWarning) - Number(b.riskWarning);
+        const categoryDiff = defaultCatalogRank(a) - defaultCatalogRank(b);
+        if (categoryDiff !== 0) return categoryDiff;
+        const refillDiff = Number(b.refillSupported) - Number(a.refillSupported);
         if (refillDiff !== 0) return refillDiff;
-        return defaultCatalogRank(a) - defaultCatalogRank(b);
+        return a.name.localeCompare(b.name, "fr");
       });
     } else {
       list = [...list].sort((a, b) => {

@@ -192,6 +192,7 @@ export class CatalogService {
               minQuantity: true,
               maxQuantity: true,
               platform: true,
+              refillSupported: true,
               dripfeedSupported: true,
             },
           },
@@ -232,6 +233,7 @@ export class CatalogService {
         maxQuantity: s.maxQuantityOverride ?? s.providerService.maxQuantity,
         priceClientXof: price.priceClientXof.toDecimalPlaces(0).toString(),
         referenceQuantity,
+        refillSupported: s.providerService.refillSupported,
         dripfeedSupported: s.providerService.dripfeedSupported,
         // Exact limits aren't worth fetching fieldsSchema (a JSON column) for ~1000 rows
         // just to show a grid card — the checkout page's single-item lookup (getPublicOne)
@@ -285,6 +287,7 @@ export class CatalogService {
       maxQuantity: service.maxQuantityOverride ?? service.providerService.maxQuantity,
       priceClientXof: price.priceClientXof.toDecimalPlaces(0).toString(),
       referenceQuantity,
+      refillSupported: service.providerService.refillSupported,
       dripfeedSupported: service.providerService.dripfeedSupported,
       dripfeedMaxRuns: dripfeed.maxRuns,
       dripfeedMaxIntervalMinutes: dripfeed.maxIntervalMinutes,

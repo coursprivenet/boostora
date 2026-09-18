@@ -20,6 +20,10 @@ function displayName(name: string) {
     .replace(/\bShares?\b/gi, "Partages");
 }
 
+function isGenericNoRefillWarning(warning: string | null): boolean {
+  return Boolean(warning && /(?:sans|pas de) refill|r[ée]sultats? non garantis?/i.test(warning));
+}
+
 export function ServiceCard({ item }: { item: CatalogItem }) {
   return (
     <div className="flex flex-col justify-between rounded-xl2 border border-ink-200 bg-white p-5 shadow-[0_3px_12px_rgba(10,11,15,0.04)] transition-all hover:-translate-y-0.5 hover:border-ink-900 hover:shadow-card">
@@ -31,10 +35,16 @@ export function ServiceCard({ item }: { item: CatalogItem }) {
         {item.description && (
           <p className="mt-1.5 line-clamp-2 text-sm text-ink-500">{item.description}</p>
         )}
-        {item.riskWarning && (
+        {!item.refillSupported && (
+          <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-ink-50 px-2.5 py-1 text-xs font-medium text-ink-500">
+            Sans refill
+            <Tooltip text="Ce service n'inclut pas de remplacement automatique si une partie de la livraison baisse plus tard." />
+          </p>
+        )}
+        {item.riskWarning && !isGenericNoRefillWarning(item.riskWarning) && (
           <p className="mt-3 flex items-start gap-1.5 rounded-lg bg-amber-50 px-2.5 py-2 text-xs leading-relaxed text-amber-800">
             <span>⚠️ {item.riskWarning}</span>
-            <Tooltip text="Si le nombre livré baisse après coup (compte suspendu, purge de la plateforme, etc.), ce service ne recompense pas automatiquement — et aucun chiffre n'est garanti à 100%, les réseaux sociaux gardent le contrôle final." />
+            <Tooltip text="Information spécifique à cette offre." />
           </p>
         )}
         <p className="mt-4 text-xs text-ink-400">

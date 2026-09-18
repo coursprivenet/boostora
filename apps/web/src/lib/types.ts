@@ -38,6 +38,7 @@ export interface CatalogItem {
   maxQuantity: number;
   priceClientXof: string;
   referenceQuantity: number;
+  refillSupported: boolean;
   dripfeedSupported: boolean;
   dripfeedMaxRuns: number | null;
   dripfeedMaxIntervalMinutes: number | null;
