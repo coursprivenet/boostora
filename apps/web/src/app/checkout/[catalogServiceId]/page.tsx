@@ -44,8 +44,8 @@ function quantityToSliderPos(quantity: number, min: number, max: number) {
 function sliderMaxFor(itemMax: number) {
   return Math.min(itemMax, 100000);
 }
-// The supplier's own minimum is the only quantity floor. Payment minimums apply to
-// the total in XOF, not to the number of likes/followers requested.
+// The API already returns the real minimum that can be ordered and billed. It may
+// be above the technical service minimum when 100 FCFA corresponds to more units.
 function effectiveMinFor(itemMin: number) {
   return itemMin;
 }

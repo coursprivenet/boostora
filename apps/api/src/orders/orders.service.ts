@@ -162,15 +162,16 @@ export class OrdersService {
    * Creates the order shell + prices it, then opens a Yengapay payment intent.
    * The order only reaches PAID once the client completes send-otp + confirm below —
    * never on the strength of this call alone.
-   */
+  */
   async create(userId: string, dto: CreateOrderDto) {
-    const duplicate = await this.findReusableDuplicate(userId, dto);
-    if (duplicate) return duplicate;
-
     const [priced, costFxRate] = await Promise.all([
       this.catalog.computeOrderPrice(dto.catalogServiceId, dto.quantity),
       this.exchangeRate.getCurrentCostRate(),
     ]);
+    // Validate the quantity first. Otherwise an old pending payment created before
+    // a catalog minimum changed could be reused with a quantity no longer sellable.
+    const duplicate = await this.findReusableDuplicate(userId, dto);
+    if (duplicate) return duplicate;
 
     const dripfeedRequested = dto.dripfeedRuns != null || dto.dripfeedIntervalMinutes != null;
     if (dripfeedRequested) {
@@ -240,9 +241,10 @@ export class OrdersService {
       discountXof = discount.discountXof;
     }
     const paymentCountryCode = dto.paymentCountryCode ?? "BF";
-    // Payment floors apply to the amount, not the quantity: a supplier-supported
-    // 10-unit order remains available even when its calculated subtotal is tiny.
-    const paymentFloorXof = paymentCountryCode === "OTHER" ? new Decimal(0) : new Decimal(process.env.YENGAPAY_MIN_AMOUNT_XOF ?? "100");
+    // The catalog enforces an equivalent quantity whenever it exists. For the few
+    // capped offers where it does not, this is the explicit minimum paid on every
+    // payment channel, including crypto, so the order total never diverges by country.
+    const paymentFloorXof = new Decimal(process.env.YENGAPAY_MIN_AMOUNT_XOF ?? "100");
     if (finalPriceXof.lt(paymentFloorXof)) finalPriceXof = paymentFloorXof;
     const actualDiscountXof = Decimal.max(new Decimal(0), priced.priceClientXof.minus(finalPriceXof));
     const marginAfterDiscount = finalPriceXof.minus(priced.costProviderXof);

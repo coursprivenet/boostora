@@ -38,6 +38,8 @@ export interface CatalogItem {
   maxQuantity: number;
   priceClientXof: string;
   referenceQuantity: number;
+  paymentMinimumReached: boolean;
+  paymentMinimumApplied: boolean;
   refillSupported: boolean;
   dripfeedSupported: boolean;
   dripfeedMaxRuns: number | null;

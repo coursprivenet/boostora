@@ -9,8 +9,29 @@ import { UpsertCatalogServiceDto } from "./dto/upsert-catalog-service.dto";
 
 type PriceQuote = ReturnType<typeof computePrice>;
 
-/** Quote the quantity that naturally reaches the 100 F payment floor. */
-function findPublicReferenceOffer(params: {
+const DEFAULT_PAYMENT_MINIMUM_XOF = new Decimal(100);
+
+function paymentMinimumXof() {
+  const configured = new Decimal(process.env.YENGAPAY_MIN_AMOUNT_XOF ?? "100");
+  return configured.isFinite() && configured.gt(0) ? configured : DEFAULT_PAYMENT_MINIMUM_XOF;
+}
+
+/**
+ * `minPriceXof = 100` is the historical payment floor, not an independent
+ * commercial price floor. A larger value remains an explicit admin floor.
+ */
+function commercialMinimumPrice(minPriceXof?: Decimal.Value | null) {
+  if (minPriceXof == null) return null;
+  const minimum = new Decimal(minPriceXof);
+  return minimum.gt(paymentMinimumXof()) ? minimum.toString() : null;
+}
+
+/**
+ * Finds the first quantity whose un-floored price reaches the payment minimum.
+ * That quantity becomes the real order minimum, so a public “100 F pour N”
+ * statement always matches what checkout and the API accept.
+ */
+export function findPublicReferenceOffer(params: {
   unit: string;
   minQuantity: number;
   maxQuantity: number;
@@ -19,20 +40,33 @@ function findPublicReferenceOffer(params: {
 }) {
   let referenceQuantity = params.unit === "per_1000" ? params.minQuantity : 1;
   let price = params.priceFor(referenceQuantity);
-  if (params.unit !== "per_1000" || params.priceWithoutMinimum(referenceQuantity).priceClientXof.gte(100)) {
-    return { referenceQuantity, price };
+  const paymentMinimum = paymentMinimumXof();
+  if (params.unit !== "per_1000" || params.priceWithoutMinimum(referenceQuantity).priceClientXof.gte(paymentMinimum)) {
+    return { referenceQuantity, price, minimumQuantity: params.minQuantity, paymentMinimumReached: false, paymentMinimumApplied: false };
+  }
+
+  // A capped or fixed-price offer can never naturally reach the payment floor.
+  // Keep its technical minimum and let the payment layer show/apply the floor;
+  // importantly, never invent a false quantity equivalence for it.
+  if (params.priceWithoutMinimum(params.maxQuantity).priceClientXof.lt(paymentMinimum)) {
+    price = {
+      ...price,
+      priceClientXof: paymentMinimum,
+      marginXof: paymentMinimum.minus(price.costProviderXof),
+    };
+    return { referenceQuantity, price, minimumQuantity: params.minQuantity, paymentMinimumReached: false, paymentMinimumApplied: true };
   }
 
   let low = params.minQuantity;
   let high = params.maxQuantity;
   while (low < high) {
     const middle = Math.floor((low + high) / 2);
-    if (params.priceWithoutMinimum(middle).priceClientXof.gte(100)) high = middle;
+    if (params.priceWithoutMinimum(middle).priceClientXof.gte(paymentMinimum)) high = middle;
     else low = middle + 1;
   }
   referenceQuantity = low;
   price = params.priceFor(referenceQuantity);
-  return { referenceQuantity, price };
+  return { referenceQuantity, price, minimumQuantity: referenceQuantity, paymentMinimumReached: true, paymentMinimumApplied: false };
 }
 
 @Injectable()
@@ -132,30 +166,56 @@ export class CatalogService {
       throw new NotFoundException("Service indisponible");
     }
 
-    const min = service.minQuantityOverride ?? service.providerService.minQuantity;
+    const technicalMin = service.minQuantityOverride ?? service.providerService.minQuantity;
     const max = service.maxQuantityOverride ?? service.providerService.maxQuantity;
+    const costUsdFor = (requestedQuantity: number) => new Decimal(service.providerService.rateUsd.toString()).mul(
+      service.providerService.unit === "per_1000" ? new Decimal(requestedQuantity).div(1000) : 1,
+    );
+    const priceFor = (requestedQuantity: number) => computePrice({
+      pricingRuleType: service.pricingRuleType,
+      pricingValue: service.pricingValue.toString(),
+      costUsd: costUsdFor(requestedQuantity),
+      fxRateXofPerUsd: fxRate,
+      roundingStep: service.roundingStep?.toString(),
+      minPriceXof: commercialMinimumPrice(service.minPriceXof?.toString()),
+      maxPriceXof: service.maxPriceXof?.toString(),
+    });
+    const priceWithoutMinimum = (requestedQuantity: number) => computePrice({
+      pricingRuleType: service.pricingRuleType,
+      pricingValue: service.pricingValue.toString(),
+      costUsd: costUsdFor(requestedQuantity),
+      fxRateXofPerUsd: fxRate,
+      roundingStep: service.roundingStep?.toString(),
+      minPriceXof: null,
+      maxPriceXof: service.maxPriceXof?.toString(),
+    });
+    const reference = findPublicReferenceOffer({
+      unit: service.providerService.unit,
+      minQuantity: technicalMin,
+      maxQuantity: max,
+      priceFor,
+      priceWithoutMinimum,
+    });
+    const min = reference.minimumQuantity;
     if (quantity < min || quantity > max) {
       throw new BadRequestException(`Quantité invalide (min ${min}, max ${max})`);
     }
 
-    const quantityFactor =
-      service.providerService.unit === "per_1000" ? new Decimal(quantity).div(1000) : new Decimal(1);
-    const costUsdForOrder = new Decimal(service.providerService.rateUsd.toString()).mul(quantityFactor);
-
-    const price = computePrice({
-      pricingRuleType: service.pricingRuleType,
-      pricingValue: service.pricingValue.toString(),
-      costUsd: costUsdForOrder,
-      fxRateXofPerUsd: fxRate,
-      roundingStep: service.roundingStep?.toString(),
-      minPriceXof: service.minPriceXof?.toString(),
-      maxPriceXof: service.maxPriceXof?.toString(),
-    });
+    const costUsdForOrder = costUsdFor(quantity);
+    let price = priceFor(quantity);
+    if (reference.paymentMinimumApplied && price.priceClientXof.lt(paymentMinimumXof())) {
+      price = {
+        ...price,
+        priceClientXof: paymentMinimumXof(),
+        marginXof: paymentMinimumXof().minus(price.costProviderXof),
+      };
+    }
 
     return {
       catalogService: service,
       providerService: service.providerService,
       quantity,
+      minimumQuantity: min,
       fxRateUsed: fxRate,
       priceClientXof: price.priceClientXof.toDecimalPlaces(0),
       costProviderXof: price.costProviderXof.toDecimalPlaces(0),
@@ -202,7 +262,7 @@ export class CatalogService {
         costUsd: costUsdFor(quantity),
         fxRateXofPerUsd: fxRate,
         roundingStep: s.roundingStep?.toString(),
-        minPriceXof: s.minPriceXof?.toString(),
+        minPriceXof: commercialMinimumPrice(s.minPriceXof?.toString()),
         maxPriceXof: s.maxPriceXof?.toString(),
       });
       const priceWithoutMinimum = (quantity: number) => computePrice({
@@ -214,7 +274,7 @@ export class CatalogService {
         minPriceXof: null,
         maxPriceXof: s.maxPriceXof?.toString(),
       });
-      const { referenceQuantity, price } = findPublicReferenceOffer({
+      const { referenceQuantity, price, minimumQuantity, paymentMinimumReached, paymentMinimumApplied } = findPublicReferenceOffer({
         unit: s.providerService.unit, minQuantity, maxQuantity, priceFor, priceWithoutMinimum,
       });
       const actualProviderCostXof = costUsdFor(referenceQuantity).mul(costFxRate);
@@ -242,9 +302,11 @@ export class CatalogService {
           minQuantity: s.providerService.minQuantity,
           maxQuantity: s.providerService.maxQuantity,
         },
-        minQuantity,
+        minQuantity: minimumQuantity,
         maxQuantity,
         referenceQuantity,
+        paymentMinimumReached,
+        paymentMinimumApplied,
         fxRateUsed: fxRate.toString(),
         costFxRateUsed: costFxRate.toString(),
         priceClientXof: price.priceClientXof.toDecimalPlaces(0).toString(),
@@ -304,19 +366,21 @@ export class CatalogService {
         ),
         fxRateXofPerUsd: fxRate,
         roundingStep: s.roundingStep?.toString(),
-        minPriceXof: s.minPriceXof?.toString(),
+        minPriceXof: commercialMinimumPrice(s.minPriceXof?.toString()),
         maxPriceXof: s.maxPriceXof?.toString(),
       });
       const priceWithoutMinimum = (quantity: number) => computePrice({
         pricingRuleType: s.pricingRuleType,
         pricingValue: s.pricingValue.toString(),
-        costUsd: new Decimal(s.providerService.rateUsd.toString()).mul(new Decimal(quantity).div(1000)),
+        costUsd: new Decimal(s.providerService.rateUsd.toString()).mul(
+          s.providerService.unit === "per_1000" ? new Decimal(quantity).div(1000) : 1,
+        ),
         fxRateXofPerUsd: fxRate,
         roundingStep: s.roundingStep?.toString(),
         minPriceXof: null,
         maxPriceXof: s.maxPriceXof?.toString(),
       });
-      const { referenceQuantity, price } = findPublicReferenceOffer({
+      const { referenceQuantity, price, minimumQuantity, paymentMinimumReached, paymentMinimumApplied } = findPublicReferenceOffer({
         unit: s.providerService.unit,
         minQuantity,
         maxQuantity: s.maxQuantityOverride ?? s.providerService.maxQuantity,
@@ -332,10 +396,12 @@ export class CatalogService {
         category: { slug: s.category.slug, name: s.category.name },
         platform: s.providerService.platform,
         unit: s.providerService.unit,
-        minQuantity,
+        minQuantity: minimumQuantity,
         maxQuantity: s.maxQuantityOverride ?? s.providerService.maxQuantity,
         priceClientXof: price.priceClientXof.toDecimalPlaces(0).toString(),
         referenceQuantity,
+        paymentMinimumReached,
+        paymentMinimumApplied,
         refillSupported: s.providerService.refillSupported,
         dripfeedSupported: s.providerService.dripfeedSupported,
         // Exact limits aren't worth fetching fieldsSchema (a JSON column) for ~1000 rows
@@ -370,19 +436,21 @@ export class CatalogService {
       ),
       fxRateXofPerUsd: fxRate,
       roundingStep: service.roundingStep?.toString(),
-      minPriceXof: service.minPriceXof?.toString(),
+      minPriceXof: commercialMinimumPrice(service.minPriceXof?.toString()),
       maxPriceXof: service.maxPriceXof?.toString(),
     });
     const priceWithoutMinimum = (quantity: number) => computePrice({
       pricingRuleType: service.pricingRuleType,
       pricingValue: service.pricingValue.toString(),
-      costUsd: new Decimal(service.providerService.rateUsd.toString()).mul(new Decimal(quantity).div(1000)),
+      costUsd: new Decimal(service.providerService.rateUsd.toString()).mul(
+        service.providerService.unit === "per_1000" ? new Decimal(quantity).div(1000) : 1,
+      ),
       fxRateXofPerUsd: fxRate,
       roundingStep: service.roundingStep?.toString(),
       minPriceXof: null,
       maxPriceXof: service.maxPriceXof?.toString(),
     });
-    const { referenceQuantity, price } = findPublicReferenceOffer({
+    const { referenceQuantity, price, minimumQuantity, paymentMinimumReached, paymentMinimumApplied } = findPublicReferenceOffer({
       unit: service.providerService.unit,
       minQuantity,
       maxQuantity: service.maxQuantityOverride ?? service.providerService.maxQuantity,
@@ -399,10 +467,12 @@ export class CatalogService {
       category: { slug: service.category.slug, name: service.category.name },
       platform: service.providerService.platform,
       unit: service.providerService.unit,
-      minQuantity,
+      minQuantity: minimumQuantity,
       maxQuantity: service.maxQuantityOverride ?? service.providerService.maxQuantity,
       priceClientXof: price.priceClientXof.toDecimalPlaces(0).toString(),
       referenceQuantity,
+      paymentMinimumReached,
+      paymentMinimumApplied,
       refillSupported: service.providerService.refillSupported,
       dripfeedSupported: service.providerService.dripfeedSupported,
       dripfeedMaxRuns: dripfeed.maxRuns,

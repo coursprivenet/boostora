@@ -4,6 +4,7 @@ import { formatXof } from "@/lib/format";
 import { Tooltip } from "./Tooltip";
 
 function priceReferenceLabel(item: CatalogItem) {
+  if (item.paymentMinimumApplied) return "minimum de paiement";
   if (item.unit === "per_order") return "par commande";
   return `pour ${item.referenceQuantity.toLocaleString("fr-FR")} unités`;
 }
@@ -69,7 +70,9 @@ export function ServiceCard({ item }: { item: CatalogItem }) {
         <span className="flex min-w-0 items-center gap-1 text-lg font-semibold text-ink-900">
           {formatXof(item.priceClientXof)}
           <span className="text-xs font-normal text-ink-500">{priceReferenceLabel(item)}</span>
-          <Tooltip text={`Prix affiché pour ${item.referenceQuantity.toLocaleString("fr-FR")} unités. Si le minimum technique vaut moins de 100 FCFA, cette quantité correspond au montant minimum de paiement.`} />
+          <Tooltip text={item.paymentMinimumApplied
+            ? "Ce service ne peut pas atteindre naturellement le minimum de paiement : 100 FCFA est donc le montant minimal facturé."
+            : `Prix affiché pour ${item.referenceQuantity.toLocaleString("fr-FR")} unités. Cette quantité est le minimum réellement commandable.`} />
         </span>
         <Link
           href={`/checkout/${item.id}`}

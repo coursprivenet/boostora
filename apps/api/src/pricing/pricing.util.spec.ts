@@ -1,4 +1,6 @@
 import { PricingRuleType } from "@prisma/client";
+import Decimal from "decimal.js";
+import { findPublicReferenceOffer } from "../catalog/catalog.service";
 import { computePrice } from "./pricing.util";
 
 describe("computePrice", () => {
@@ -71,5 +73,40 @@ describe("computePrice", () => {
       maxPriceXof: 50_000,
     });
     expect(result.priceClientXof.toString()).toBe("50000");
+  });
+});
+
+describe("findPublicReferenceOffer", () => {
+  const quote = (price: number) => ({
+    priceClientXof: new Decimal(price),
+    costProviderXof: new Decimal(0),
+    marginXof: new Decimal(price),
+  });
+
+  it("makes the quantity shown for 100 FCFA the real minimum order quantity", () => {
+    const result = findPublicReferenceOffer({
+      unit: "per_1000",
+      minQuantity: 10,
+      maxQuantity: 1_000,
+      priceFor: (quantity) => quote(quantity / 10),
+      priceWithoutMinimum: (quantity) => quote(quantity / 10),
+    });
+    expect(result.referenceQuantity).toBe(1_000);
+    expect(result.minimumQuantity).toBe(1_000);
+    expect(result.paymentMinimumReached).toBe(true);
+    expect(result.paymentMinimumApplied).toBe(false);
+  });
+
+  it("does not fabricate a quantity equivalence for a capped offer", () => {
+    const result = findPublicReferenceOffer({
+      unit: "per_1000",
+      minQuantity: 10,
+      maxQuantity: 50,
+      priceFor: (quantity) => quote(quantity),
+      priceWithoutMinimum: (quantity) => quote(quantity),
+    });
+    expect(result.minimumQuantity).toBe(10);
+    expect(result.paymentMinimumApplied).toBe(true);
+    expect(result.price.priceClientXof.toString()).toBe("100");
   });
 });
