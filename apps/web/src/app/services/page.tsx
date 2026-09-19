@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
 import { CatalogItem } from "@/lib/types";
@@ -80,7 +80,7 @@ function isCountryTargeted(name: string): boolean {
   return COUNTRY_TOKENS.some((t) => name.includes(t));
 }
 
-export default function ServicesPage() {
+function ServicesContent() {
   const searchParams = useSearchParams();
   const [services, setServices] = useState<CatalogItem[] | null>(null);
   const [error, setError] = useState(false);
@@ -325,5 +325,13 @@ export default function ServicesPage() {
         )}
       </section>
     </main>
+  );
+}
+
+export default function ServicesPage() {
+  return (
+    <Suspense fallback={<main className="px-6 py-20 text-center text-ink-400">Chargement du catalogue…</main>}>
+      <ServicesContent />
+    </Suspense>
   );
 }
