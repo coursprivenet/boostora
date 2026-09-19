@@ -10,6 +10,7 @@ import { NetworkLogo } from "./NetworkLogo";
 
 export function SocialNetworkLanding({ network }: { network: SocialNetworkSlug }) {
   const content = SOCIAL_NETWORKS[network];
+  const animationDuration = ({ instagram: "4.8s", tiktok: "4.1s", facebook: "5.2s", youtube: "4.5s", spotify: "5.5s", twitter: "4.3s", whatsapp: "5s", snapchat: "4.6s", linkedin: "5.3s", telegram: "4.4s" } as Record<SocialNetworkSlug, string>)[network];
   const [services, setServices] = useState<CatalogItem[] | null>(null);
 
   useEffect(() => {
@@ -41,7 +42,11 @@ export function SocialNetworkLanding({ network }: { network: SocialNetworkSlug }
             </div>
           </div>
           <div className="mx-auto flex aspect-square w-full max-w-[330px] items-center justify-center rounded-[2.5rem] border-2 border-ink-900 bg-ink-900 p-6 shadow-[12px_12px_0_#FFD400]">
-            <div className="flex h-full w-full items-center justify-center rounded-[2rem] border-2 border-brand-500 bg-brand-500 text-ink-900"><NetworkLogo network={network} className="h-40 w-40 sm:h-48 sm:w-48" /></div>
+            <div className="flex h-full w-full items-center justify-center rounded-[2rem] border-2 border-brand-500 bg-brand-500 text-ink-900">
+              <div className="animate-hero-float" style={{ animationDuration }}>
+                <NetworkLogo network={network} className="h-40 w-40 sm:h-48 sm:w-48" />
+              </div>
+            </div>
           </div>
         </div>
       </section>
