@@ -7,6 +7,34 @@ import { computePrice } from "../pricing/pricing.util";
 import { extractDripfeedLimits } from "../panelfollows/dripfeed.util";
 import { UpsertCatalogServiceDto } from "./dto/upsert-catalog-service.dto";
 
+type PriceQuote = ReturnType<typeof computePrice>;
+
+/** Quote the quantity that naturally reaches the 100 F payment floor. */
+function findPublicReferenceOffer(params: {
+  unit: string;
+  minQuantity: number;
+  maxQuantity: number;
+  priceFor: (quantity: number) => PriceQuote;
+  priceWithoutMinimum: (quantity: number) => PriceQuote;
+}) {
+  let referenceQuantity = params.unit === "per_1000" ? params.minQuantity : 1;
+  let price = params.priceFor(referenceQuantity);
+  if (params.unit !== "per_1000" || params.priceWithoutMinimum(referenceQuantity).priceClientXof.gte(100)) {
+    return { referenceQuantity, price };
+  }
+
+  let low = params.minQuantity;
+  let high = params.maxQuantity;
+  while (low < high) {
+    const middle = Math.floor((low + high) / 2);
+    if (params.priceWithoutMinimum(middle).priceClientXof.gte(100)) high = middle;
+    else low = middle + 1;
+  }
+  referenceQuantity = low;
+  price = params.priceFor(referenceQuantity);
+  return { referenceQuantity, price };
+}
+
 @Injectable()
 export class CatalogService {
   constructor(
@@ -177,22 +205,18 @@ export class CatalogService {
         minPriceXof: s.minPriceXof?.toString(),
         maxPriceXof: s.maxPriceXof?.toString(),
       });
-      // Same starting quantity and 100 XOF discovery rule as the public catalogue.
-      // Admin numbers must describe the exact offer the customer sees, not a hidden
-      // provider "per 1,000" reference.
-      let referenceQuantity = s.providerService.unit === "per_1000" ? minQuantity : 1;
-      let price = priceFor(referenceQuantity);
-      if (s.providerService.unit === "per_1000" && price.priceClientXof.lt(100)) {
-        let low = minQuantity;
-        let high = maxQuantity;
-        while (low < high) {
-          const middle = Math.floor((low + high) / 2);
-          if (priceFor(middle).priceClientXof.gte(100)) high = middle;
-          else low = middle + 1;
-        }
-        referenceQuantity = low;
-        price = priceFor(referenceQuantity);
-      }
+      const priceWithoutMinimum = (quantity: number) => computePrice({
+        pricingRuleType: s.pricingRuleType,
+        pricingValue: s.pricingValue.toString(),
+        costUsd: costUsdFor(quantity),
+        fxRateXofPerUsd: fxRate,
+        roundingStep: s.roundingStep?.toString(),
+        minPriceXof: null,
+        maxPriceXof: s.maxPriceXof?.toString(),
+      });
+      const { referenceQuantity, price } = findPublicReferenceOffer({
+        unit: s.providerService.unit, minQuantity, maxQuantity, priceFor, priceWithoutMinimum,
+      });
       const actualProviderCostXof = costUsdFor(referenceQuantity).mul(costFxRate);
 
       return {
@@ -283,21 +307,22 @@ export class CatalogService {
         minPriceXof: s.minPriceXof?.toString(),
         maxPriceXof: s.maxPriceXof?.toString(),
       });
-      // Cards quote the provider's actual minimum. If that small order costs under
-      // the Mobile Money floor, grow the displayed quantity to what 100 XOF buys.
-      let referenceQuantity = s.providerService.unit === "per_1000" ? minQuantity : 1;
-      let price = priceFor(referenceQuantity);
-      if (s.providerService.unit === "per_1000" && price.priceClientXof.lt(100)) {
-        let low = minQuantity;
-        let high = s.maxQuantityOverride ?? s.providerService.maxQuantity;
-        while (low < high) {
-          const middle = Math.floor((low + high) / 2);
-          if (priceFor(middle).priceClientXof.gte(100)) high = middle;
-          else low = middle + 1;
-        }
-        referenceQuantity = low;
-        price = priceFor(referenceQuantity);
-      }
+      const priceWithoutMinimum = (quantity: number) => computePrice({
+        pricingRuleType: s.pricingRuleType,
+        pricingValue: s.pricingValue.toString(),
+        costUsd: new Decimal(s.providerService.rateUsd.toString()).mul(new Decimal(quantity).div(1000)),
+        fxRateXofPerUsd: fxRate,
+        roundingStep: s.roundingStep?.toString(),
+        minPriceXof: null,
+        maxPriceXof: s.maxPriceXof?.toString(),
+      });
+      const { referenceQuantity, price } = findPublicReferenceOffer({
+        unit: s.providerService.unit,
+        minQuantity,
+        maxQuantity: s.maxQuantityOverride ?? s.providerService.maxQuantity,
+        priceFor,
+        priceWithoutMinimum,
+      });
 
       return {
         id: s.id,
@@ -348,19 +373,22 @@ export class CatalogService {
       minPriceXof: service.minPriceXof?.toString(),
       maxPriceXof: service.maxPriceXof?.toString(),
     });
-    let referenceQuantity = service.providerService.unit === "per_1000" ? minQuantity : 1;
-    let price = priceFor(referenceQuantity);
-    if (service.providerService.unit === "per_1000" && price.priceClientXof.lt(100)) {
-      let low = minQuantity;
-      let high = service.maxQuantityOverride ?? service.providerService.maxQuantity;
-      while (low < high) {
-        const middle = Math.floor((low + high) / 2);
-        if (priceFor(middle).priceClientXof.gte(100)) high = middle;
-        else low = middle + 1;
-      }
-      referenceQuantity = low;
-      price = priceFor(referenceQuantity);
-    }
+    const priceWithoutMinimum = (quantity: number) => computePrice({
+      pricingRuleType: service.pricingRuleType,
+      pricingValue: service.pricingValue.toString(),
+      costUsd: new Decimal(service.providerService.rateUsd.toString()).mul(new Decimal(quantity).div(1000)),
+      fxRateXofPerUsd: fxRate,
+      roundingStep: service.roundingStep?.toString(),
+      minPriceXof: null,
+      maxPriceXof: service.maxPriceXof?.toString(),
+    });
+    const { referenceQuantity, price } = findPublicReferenceOffer({
+      unit: service.providerService.unit,
+      minQuantity,
+      maxQuantity: service.maxQuantityOverride ?? service.providerService.maxQuantity,
+      priceFor,
+      priceWithoutMinimum,
+    });
 
     const dripfeed = extractDripfeedLimits(service.providerService.fieldsSchema);
     return {

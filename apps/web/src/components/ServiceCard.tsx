@@ -3,9 +3,9 @@ import { CatalogItem } from "@/lib/types";
 import { formatXof } from "@/lib/format";
 import { Tooltip } from "./Tooltip";
 
-function unitLabel(item: CatalogItem) {
-  if (item.unit === "per_order") return "/ commande";
-  return `/ ${item.referenceQuantity.toLocaleString("fr-FR")}`;
+function priceReferenceLabel(item: CatalogItem) {
+  if (item.unit === "per_order") return "par commande";
+  return `pour ${item.referenceQuantity.toLocaleString("fr-FR")} unités`;
 }
 
 // Supplier labels are sometimes entered in English. Translate only the unambiguous
@@ -68,8 +68,8 @@ export function ServiceCard({ item }: { item: CatalogItem }) {
       <div className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t border-ink-100 pt-4">
         <span className="flex min-w-0 items-center gap-1 text-lg font-semibold text-ink-900">
           {formatXof(item.priceClientXof)}
-          <span className="text-xs font-normal text-ink-400">{unitLabel(item)}</span>
-          <Tooltip text={`Prix de référence pour ${item.referenceQuantity.toLocaleString("fr-FR")} unités (la quantité minimum utile pour ce service). Le montant réel se calcule automatiquement selon la quantité que tu choisis au moment de commander.`} />
+          <span className="text-xs font-normal text-ink-500">{priceReferenceLabel(item)}</span>
+          <Tooltip text={`Prix affiché pour ${item.referenceQuantity.toLocaleString("fr-FR")} unités. Si le minimum technique vaut moins de 100 FCFA, cette quantité correspond au montant minimum de paiement.`} />
         </span>
         <Link
           href={`/checkout/${item.id}`}

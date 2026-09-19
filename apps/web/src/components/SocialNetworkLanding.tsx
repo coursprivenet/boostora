@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 import { CatalogItem } from "@/lib/types";
 import { SOCIAL_NETWORKS, type SocialNetworkSlug } from "@/lib/social-networks";
 import { ServiceCard } from "./ServiceCard";
+import { NetworkLogo } from "./NetworkLogo";
 
 export function SocialNetworkLanding({ network }: { network: SocialNetworkSlug }) {
   const content = SOCIAL_NETWORKS[network];
@@ -40,7 +41,7 @@ export function SocialNetworkLanding({ network }: { network: SocialNetworkSlug }
             </div>
           </div>
           <div className="mx-auto flex aspect-square w-full max-w-[330px] items-center justify-center rounded-[2.5rem] border-2 border-ink-900 bg-ink-900 p-6 shadow-[12px_12px_0_#FFD400]">
-            <div className="flex h-full w-full items-center justify-center rounded-[2rem] border-2 border-brand-500 bg-brand-500 text-7xl font-black tracking-tighter text-ink-900 sm:text-8xl">{content.accent}</div>
+            <div className="flex h-full w-full items-center justify-center rounded-[2rem] border-2 border-brand-500 bg-brand-500 text-ink-900"><NetworkLogo network={network} className="h-40 w-40 sm:h-48 sm:w-48" /></div>
           </div>
         </div>
       </section>

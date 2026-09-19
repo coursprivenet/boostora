@@ -2,6 +2,7 @@ import Link from "next/link";
 import { FeatureIcon, type FeatureIconName } from "@/components/FeatureIcon";
 import { HeroIllustration } from "@/components/HeroIllustration";
 import { SOCIAL_NETWORKS } from "@/lib/social-networks";
+import { NetworkLogo } from "@/components/NetworkLogo";
 
 type Feature = { title: string; body: string } & (
   | { img: string }
@@ -123,7 +124,7 @@ export default function HomePage() {
           <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             {Object.entries(SOCIAL_NETWORKS).map(([slug, network]) => (
               <Link key={slug} href={`/${slug}`} className="group rounded-xl2 border-2 border-ink-900 bg-white px-4 py-4 text-left transition hover:-translate-y-0.5 hover:bg-brand-500 hover:shadow-[4px_4px_0_#12141A]">
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-500 text-sm font-black text-ink-900 group-hover:bg-white">{network.accent}</span>
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-500 p-2 text-ink-900 group-hover:bg-white"><NetworkLogo network={slug as keyof typeof SOCIAL_NETWORKS} className="h-full w-full" /></span>
                 <span className="mt-5 block text-base font-semibold text-ink-900">{network.name}</span>
                 <span className="mt-1 block text-xs text-ink-500 group-hover:text-ink-700">Voir les offres →</span>
               </Link>
