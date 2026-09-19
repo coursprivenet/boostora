@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { FeatureIcon, type FeatureIconName } from "@/components/FeatureIcon";
 import { HeroIllustration } from "@/components/HeroIllustration";
+import { SOCIAL_NETWORKS } from "@/lib/social-networks";
 
 type Feature = { title: string; body: string } & (
   | { img: string }
@@ -110,6 +111,22 @@ export default function HomePage() {
                 <h3 className="mt-3 text-sm font-semibold text-ink-900 sm:mt-4">{f.title}</h3>
                 <p className="mt-1.5 text-xs leading-relaxed text-ink-500">{f.body}</p>
               </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="border-b-2 border-ink-900 bg-[#FFFBF0] px-6 py-14">
+        <div className="mx-auto max-w-6xl text-center">
+          <p className="text-sm font-bold uppercase tracking-[0.16em] text-ink-500">Choisis ton réseau</p>
+          <h2 className="mt-2 text-3xl font-semibold tracking-tight text-ink-900">Chaque réseau a sa page. Chaque objectif, ses services.</h2>
+          <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            {Object.entries(SOCIAL_NETWORKS).map(([slug, network]) => (
+              <Link key={slug} href={`/${slug}`} className="group rounded-xl2 border-2 border-ink-900 bg-white px-4 py-4 text-left transition hover:-translate-y-0.5 hover:bg-brand-500 hover:shadow-[4px_4px_0_#12141A]">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-500 text-sm font-black text-ink-900 group-hover:bg-white">{network.accent}</span>
+                <span className="mt-5 block text-base font-semibold text-ink-900">{network.name}</span>
+                <span className="mt-1 block text-xs text-ink-500 group-hover:text-ink-700">Voir les offres →</span>
+              </Link>
             ))}
           </div>
         </div>

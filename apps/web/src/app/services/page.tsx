@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
 import { CatalogItem } from "@/lib/types";
 import { ServiceCard } from "@/components/ServiceCard";
@@ -80,6 +81,7 @@ function isCountryTargeted(name: string): boolean {
 }
 
 export default function ServicesPage() {
+  const searchParams = useSearchParams();
   const [services, setServices] = useState<CatalogItem[] | null>(null);
   const [error, setError] = useState(false);
   const [platformFilter, setPlatformFilter] = useState<string | null>(null);
@@ -89,6 +91,11 @@ export default function ServicesPage() {
   const [sort, setSort] = useState<"default" | "price-asc" | "price-desc">("default");
   const [page, setPage] = useState(1);
   const [filtersOpen, setFiltersOpen] = useState(false);
+
+  useEffect(() => {
+    const platform = searchParams.get("platform");
+    setPlatformFilter(platform && PLATFORM_LABELS[platform] ? platform : null);
+  }, [searchParams]);
 
   useEffect(() => {
     api
