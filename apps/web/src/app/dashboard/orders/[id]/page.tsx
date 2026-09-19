@@ -183,7 +183,7 @@ export default function OrderDetailPage() {
               {/* eslint-disable-next-line @next/next/no-img-element -- brand logo is a static public asset and must print with the receipt */}
               <img
                 src="/brand/wassago-logo-horizontal.png"
-                alt="Wassago — Grandir ensemble"
+                alt="Wassago, Grandir ensemble"
                 className="h-10 w-auto max-w-full object-contain print:h-9"
               />
               <p className="mt-1 text-xs text-ink-400">Reçu de paiement</p>

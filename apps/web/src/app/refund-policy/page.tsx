@@ -1,5 +1,5 @@
 export const metadata = {
-  title: "Politique de Remboursement — Wassago",
+  title: "Politique de Remboursement | Wassago",
 };
 
 export default function RefundPolicyPage() {
@@ -41,7 +41,7 @@ export default function RefundPolicyPage() {
             <li>
               la baisse ou la disparition des abonnés, vues ou interactions résulte d&apos;une action
               de modération de la plateforme sociale visée (Instagram, TikTok, Facebook, YouTube,
-              etc.) — Wassago n&apos;a aucun contrôle sur ces décisions ;
+              etc.), Wassago n&apos;a aucun contrôle sur ces décisions ;
             </li>
             <li>
               le lien cible fourni était invalide, privé, ou a été modifié/supprimé par le client

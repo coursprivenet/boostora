@@ -69,11 +69,11 @@ export function Navbar() {
   return (
     <header className="print:hidden border-b border-ink-200 bg-white/90 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <Link href="/" className="shrink-0" aria-label="Wassago — Grandir ensemble">
+        <Link href="/" className="shrink-0" aria-label="Wassago, Grandir ensemble">
           {/* eslint-disable-next-line @next/next/no-img-element -- brand logo is a static public asset */}
           <img
             src="/brand/wassago-logo-horizontal.png"
-            alt="Wassago — Grandir ensemble"
+            alt="Wassago, Grandir ensemble"
             className="h-9 w-auto object-contain sm:h-10"
           />
         </Link>

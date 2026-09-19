@@ -122,7 +122,7 @@ export default function AdminOrdersPage() {
                     <td className="px-4 py-3 text-ink-500">{o.costProviderUsd} USD</td>
                     <td className="px-4 py-3 text-ink-500">{formatXof(o.marginXof)}</td>
                     <td className="px-4 py-3 text-ink-500">
-                      {o.netMarginXof != null ? formatXof(o.netMarginXof) : "—"}
+                      {o.netMarginXof != null ? formatXof(o.netMarginXof) : "Non renseigné"}
                     </td>
                     <td className="px-4 py-3">
                       <StatusBadge status={o.orderStatus} />

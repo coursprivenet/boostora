@@ -21,7 +21,7 @@ function ResetPasswordForm() {
     setError(null);
 
     if (!token) {
-      setError("Lien invalide — demande un nouveau lien de réinitialisation.");
+      setError("Lien invalide. Demande un nouveau lien de réinitialisation.");
       return;
     }
     if (newPassword !== confirmPassword) {

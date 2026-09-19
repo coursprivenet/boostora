@@ -164,7 +164,7 @@ export default function AdminCatalogPage() {
         token,
       );
       setSyncResult(
-        `${result.fetched} services récupérés — ${result.created} nouveaux, ${result.updated} mis à jour, ${result.deactivated} désactivés.`,
+        `${result.fetched} services récupérés : ${result.created} nouveaux, ${result.updated} mis à jour, ${result.deactivated} désactivés.`,
       );
       loadAll();
     } catch (err) {
@@ -430,7 +430,7 @@ export default function AdminCatalogPage() {
               onChange={(e) => setForm((f) => ({ ...f, categoryId: e.target.value }))}
               className="w-full rounded-lg border border-ink-200 px-3 py-2.5 text-sm text-ink-900"
             >
-              <option value="">— choisir —</option>
+              <option value="">Choisir</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -492,7 +492,7 @@ export default function AdminCatalogPage() {
 
         <label className="mt-4 block">
           <span className="mb-1.5 block text-sm font-medium text-ink-700">
-            Avertissement (optionnel) — affiché en évidence sur la fiche et au checkout
+            Avertissement (optionnel), affiché en évidence sur la fiche et au checkout
           </span>
           <textarea
             rows={2}

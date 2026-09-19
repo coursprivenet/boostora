@@ -157,10 +157,10 @@ export default function AdminCouponsPage() {
                     {c.maxUses ? ` / ${c.maxUses}` : ""}
                   </td>
                   <td className="px-4 py-3 text-ink-500">
-                    {c.minOrderXof ? formatXof(c.minOrderXof) : "—"}
+                    {c.minOrderXof ? formatXof(c.minOrderXof) : "Non renseigné"}
                   </td>
                   <td className="px-4 py-3 text-ink-400">
-                    {c.expiresAt ? new Date(c.expiresAt).toLocaleDateString("fr-FR") : "—"}
+                    {c.expiresAt ? new Date(c.expiresAt).toLocaleDateString("fr-FR") : "Non renseigné"}
                   </td>
                   <td className="px-4 py-3">
                     <button

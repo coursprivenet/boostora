@@ -83,7 +83,7 @@ export default function AdminAuditLogsPage() {
                     {log.targetId ? (
                       <span className="font-mono text-xs">{log.targetId.slice(0, 12)}…</span>
                     ) : (
-                      "—"
+                      "Non renseigné"
                     )}
                   </td>
                   <td className="px-4 py-3">
@@ -97,7 +97,7 @@ export default function AdminAuditLogsPage() {
                         </pre>
                       </details>
                     ) : (
-                      "—"
+                      "Non renseigné"
                     )}
                   </td>
                 </tr>

@@ -50,7 +50,7 @@ export default function AdminUsersPage() {
               {users.map((u) => (
                 <tr key={u.id} className="border-b border-ink-50 last:border-0">
                   <td className="px-4 py-3 font-medium text-ink-900">{u.email}</td>
-                  <td className="px-4 py-3 text-ink-500">{u.phone ?? "—"}</td>
+                  <td className="px-4 py-3 text-ink-500">{u.phone ?? "Non renseigné"}</td>
                   <td className="px-4 py-3 text-ink-500">{u.ordersCount}</td>
                   <td className="px-4 py-3 text-ink-400">
                     {new Date(u.createdAt).toLocaleDateString("fr-FR")}

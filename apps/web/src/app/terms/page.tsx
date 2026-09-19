@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "Conditions d'Utilisation — Wassago",
+  title: "Conditions d'Utilisation | Wassago",
 };
 
 export default function TermsPage() {

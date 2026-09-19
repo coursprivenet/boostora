@@ -13,7 +13,7 @@ const FEATURES: Feature[] = [
   {
     img: "/illustrations/features/rocket.png",
     title: "Livraison échelonnée, sur mesure",
-    body: "Étale ta commande sur plusieurs jours au lieu de tout livrer d'un coup — tu choisis le nombre de jours et de lots. Réduit le risque que la plateforme détecte un pic anormal d'activité.",
+    body: "Étale ta commande sur plusieurs jours au lieu de tout livrer d'un coup. Tu choisis le nombre de jours et de lots. Réduit le risque que la plateforme détecte un pic anormal d'activité.",
   },
   {
     img: "/illustrations/features/counter.png",
@@ -23,22 +23,22 @@ const FEATURES: Feature[] = [
   {
     img: "/illustrations/features/thumbsup.png",
     title: "Qualité au choix",
-    body: "Plusieurs offres par service — du plus économique (sans garantie) au premium haute qualité avec refill longue durée. À toi de choisir le compromis prix/sécurité.",
+    body: "Plusieurs offres par service, du plus économique (sans garantie) au premium haute qualité avec refill longue durée. À toi de choisir le compromis prix/sécurité.",
   },
   {
     img: "/illustrations/features/astronaut.png",
     title: "Ciblage géographique",
-    body: "Mix mondial ou pays spécifique selon l'offre choisie — utile si ton audience doit paraître localisée plutôt que générique.",
+    body: "Mix mondial ou pays spécifique selon l'offre choisie. Utile si ton audience doit paraître localisée plutôt que générique.",
   },
   {
     img: "/illustrations/features/tracking.png",
     title: "Suivi en temps réel",
-    body: "Chaque commande a sa barre de progression — tu sais exactement où ça en est, sans avoir à demander.",
+    body: "Chaque commande a sa barre de progression. Tu sais exactement où ça en est, sans avoir à demander.",
   },
   {
     img: "/illustrations/features/comment.png",
     title: "Support réactif",
-    body: "Une question, un souci ? Un ticket suffit — l'équipe répond directement, avec notification par email.",
+    body: "Une question, un souci ? Un ticket suffit. L'équipe répond directement, avec notification par email.",
   },
 ];
 
@@ -136,7 +136,7 @@ export default function HomePage() {
       <section className="bg-ink-900 px-6 py-14 text-center">
         <h2 className="text-2xl font-semibold text-white">Prêt à décoller ?</h2>
         <p className="mx-auto mt-2 max-w-md text-ink-300">
-          Instagram, TikTok, Facebook, YouTube — un catalogue complet t&apos;attend.
+          Instagram, TikTok, Facebook, YouTube : un catalogue complet t&apos;attend.
         </p>
         <Link
           href="/services"

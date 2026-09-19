@@ -286,7 +286,7 @@ function ServicesContent() {
             <div>
               <p className="mb-4 text-sm text-ink-400">
                 {filtered.length} service{filtered.length !== 1 ? "s" : ""}
-                {totalPages > 1 && ` — page ${page}/${totalPages}`}
+                {totalPages > 1 && ` · page ${page}/${totalPages}`}
               </p>
 
               {filtered.length === 0 && (

@@ -500,7 +500,7 @@ export default function CheckoutPage() {
                   Un pic d&apos;activité inhabituel peut être repéré par la plateforme visée et
                   entraîner une suppression partielle du résultat, ou plus rarement une restriction
                   du compte
-                  {item.dripfeedSupported ? " — étale la livraison ci-dessous pour réduire ce risque." : "."}
+                  {item.dripfeedSupported ? ". Étale la livraison ci-dessous pour réduire ce risque." : "."}
                 </span>
               </div>
               {!item.refillSupported && (
@@ -560,7 +560,7 @@ export default function CheckoutPage() {
                     <span>Min {effectiveMinFor(item.minQuantity).toLocaleString("fr-FR")}</span>
                     <span>
                       Max {sliderMaxFor(item.maxQuantity).toLocaleString("fr-FR")}
-                      {item.maxQuantity > 100000 && " (curseur) — saisis un nombre plus grand si besoin"}
+                      {item.maxQuantity > 100000 && " (curseur). Saisis un nombre plus grand si besoin"}
                     </span>
                   </div>
 
@@ -581,7 +581,7 @@ export default function CheckoutPage() {
 
                 {mandatoryDays > 0 && !item.dripfeedSupported && (
                   <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                    Cette quantité dépasse 10 000 unités — ce service ne supporte pas la livraison
+                    Cette quantité dépasse 10 000 unités. Ce service ne supporte pas la livraison
                     échelonnée, obligatoire au-delà de ce seuil. Réduis la quantité ou choisis une
                     autre offre.
                   </p>
@@ -609,11 +609,11 @@ export default function CheckoutPage() {
                         }}
                       />
                       Étaler la livraison
-                      <Tooltip text="Répartit la livraison en plusieurs lots sur plusieurs jours au lieu de tout livrer d'un coup — réduit le risque que la plateforme détecte un pic anormal d'activité et supprime les followers/likes/vues ou restreigne le compte." />
+                      <Tooltip text="Répartit la livraison en plusieurs lots sur plusieurs jours au lieu de tout livrer d'un coup. Réduit le risque que la plateforme détecte un pic anormal d'activité et supprime les followers/likes/vues ou restreigne le compte." />
                     </label>
                     <p className="mt-1 text-xs text-ink-400">
                       {mandatoryDays > 0
-                        ? `Obligatoire au-delà de 10 000 unités — minimum ${mandatoryDays} jours pour cette quantité.`
+                        ? `Obligatoire au-delà de 10 000 unités. Minimum ${mandatoryDays} jours pour cette quantité.`
                         : "Plus la livraison est étalée dans le temps, plus faible est la probabilité que les followers/likes/vues chutent après coup."}
                     </p>
                     {!canUseDripfeed && (
@@ -716,7 +716,7 @@ export default function CheckoutPage() {
                     {couponError && <p className="mt-1 text-sm text-rose-600">{couponError}</p>}
                     {couponPreview && (
                       <p className="mt-1 text-sm text-emerald-600">
-                        Code valide : -{formatXof(couponPreview.discountXof)} — nouveau total{" "}
+                        Code valide : -{formatXof(couponPreview.discountXof)}. Nouveau total{" "}
                         {formatXof(couponPreview.finalPriceXof)}
                       </p>
                     )}
@@ -914,7 +914,7 @@ export default function CheckoutPage() {
                 </div>
                 <p className="text-lg font-semibold text-ink-900">Paiement en cours de vérification</p>
                 <p className="text-sm text-ink-500">
-                  L&apos;opérateur confirme le paiement — ça prend généralement quelques instants.
+                  L&apos;opérateur confirme le paiement. Cela prend généralement quelques instants.
                   Ta commande apparaîtra comme payée dès que ce sera fait.
                 </p>
                 <Button onClick={() => router.push(`/dashboard/orders/${step.orderId}`)} className="mt-2">
