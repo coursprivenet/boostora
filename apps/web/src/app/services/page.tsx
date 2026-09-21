@@ -252,9 +252,9 @@ function ServicesContent() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-[1600px] px-6 py-8">
+      <section className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-6 sm:py-8 overflow-x-hidden">
         {platforms.length > 0 && (
-          <div className="mb-6 flex flex-wrap justify-center gap-2">
+          <div className="mb-6 flex flex-wrap justify-center gap-1.5 sm:gap-2">
             <button
               onClick={() => setPlatformFilter(null)}
               className={`rounded-full border-2 border-ink-900 px-4 py-1.5 text-sm font-semibold uppercase transition-colors ${
@@ -311,7 +311,7 @@ function ServicesContent() {
                 <p className="py-10 text-center text-ink-400">Aucun service pour ces filtres.</p>
               )}
 
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3 2xl:grid-cols-4">
                 {pageItems.map((item) => (
                   <ServiceCard key={item.id} item={item} />
                 ))}

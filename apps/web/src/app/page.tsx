@@ -42,11 +42,14 @@ const FEATURES: Feature[] = [
   },
 ];
 
+import { MobileHomeRedirect } from "@/components/MobileHomeRedirect";
+
 const OPERATORS = ["Orange Money", "Moov Money", "Coris Money", "Sank Money", "Telecel Money", "Carte bancaire / PayPal"];
 
 export default function HomePage() {
   return (
     <main>
+      <MobileHomeRedirect />
       <section className="border-b-2 border-ink-900 bg-[#FFFBF0] px-6 py-14 sm:py-20">
         <div className="mx-auto grid max-w-[1600px] items-center gap-10 lg:grid-cols-[1fr_1.3fr]">
           <div className="text-center lg:text-left">

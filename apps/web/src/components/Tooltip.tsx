@@ -41,12 +41,13 @@ export function Tooltip({ text, children }: { text: string; children?: ReactNode
         )}
       </button>
       <span
-        className={`pointer-events-none absolute bottom-full left-1/2 z-30 mb-2 w-56 max-w-[85vw] -translate-x-1/2 rounded-lg bg-ink-900 px-3 py-2 text-xs leading-snug text-white shadow-xl transition-opacity duration-150 ${
-          open ? "opacity-100 pointer-events-auto" : "opacity-0 group-hover:opacity-100"
+        role="tooltip"
+        className={`pointer-events-none absolute bottom-full right-0 sm:left-1/2 sm:-translate-x-1/2 z-30 mb-2 w-56 max-w-[75vw] rounded-lg bg-ink-900 px-3 py-2 text-xs leading-snug text-white shadow-xl transition-opacity duration-150 ${
+          open ? "block opacity-100 pointer-events-auto" : "hidden sm:group-hover:block sm:group-hover:opacity-100"
         }`}
       >
         {text}
-        <span className="absolute left-1/2 top-full h-2 w-2 -translate-x-1/2 -translate-y-1 rotate-45 bg-ink-900" />
+        <span className="absolute right-2.5 sm:left-1/2 sm:-translate-x-1/2 top-full h-2 w-2 -translate-y-1 rotate-45 bg-ink-900" />
       </span>
     </span>
   );

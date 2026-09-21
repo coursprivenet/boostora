@@ -58,7 +58,8 @@ export function MobileBottomNav() {
     { href: user ? "/dashboard/account" : "/login", label: "Compte", Icon: AccountIcon },
   ];
 
-  if (loading) return null;
+  // The mobile bottom bar is only shown when the visitor is logged into their account
+  if (loading || !user) return null;
 
   return (
     <nav className="print:hidden fixed inset-x-0 bottom-0 z-40 flex h-[4.75rem] items-end justify-around rounded-t-[1.5rem] bg-white px-2 pb-[env(safe-area-inset-bottom)] pt-2 shadow-[0_-12px_28px_rgba(10,11,15,0.14)] lg:hidden">

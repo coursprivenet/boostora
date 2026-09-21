@@ -38,7 +38,7 @@ export function ServiceCard({ item }: { item: CatalogItem }) {
     item.dripfeedSupported ? "Livraison échelonnée disponible pour répartir la commande." : null,
   ].filter(Boolean).join(" ");
   return (
-    <div className="flex flex-col justify-between rounded-xl2 border border-ink-200 bg-white p-5 shadow-[0_3px_12px_rgba(10,11,15,0.04)] transition-all hover:-translate-y-0.5 hover:border-ink-900 hover:shadow-card">
+    <div className="relative flex w-full max-w-full flex-col justify-between rounded-xl2 border border-ink-200 bg-white p-4 sm:p-5 shadow-[0_3px_12px_rgba(10,11,15,0.04)] transition-all hover:-translate-y-0.5 hover:border-ink-900 hover:shadow-card">
       <div>
         <span className="inline-flex items-center rounded-full bg-brand-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-ink-900">
           {displayPlatform(item.platform)}
@@ -66,14 +66,14 @@ export function ServiceCard({ item }: { item: CatalogItem }) {
           Commande possible : {item.minQuantity.toLocaleString("fr-FR")} à {item.maxQuantity.toLocaleString("fr-FR")} unités
         </p>
       </div>
-      <div className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t border-ink-100 pt-4">
-        <span className="flex min-w-0 items-center gap-1 text-lg font-semibold text-ink-900">
-          {formatXof(item.priceClientXof)}
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-ink-100 pt-4">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-0.5">
+          <span className="text-lg font-semibold text-ink-900">{formatXof(item.priceClientXof)}</span>
           <span className="text-xs font-normal text-ink-500">{priceReferenceLabel(item)}</span>
           <Tooltip text={item.paymentMinimumApplied
             ? "Ce service ne peut pas atteindre naturellement le minimum de paiement : 100 FCFA est donc le montant minimal facturé."
             : `Prix affiché pour ${item.referenceQuantity.toLocaleString("fr-FR")} unités. Cette quantité est le minimum réellement commandable.`} />
-        </span>
+        </div>
         <Link
           href={`/checkout/${item.id}`}
           className="shrink-0 rounded-lg border-2 border-ink-900 bg-ink-900 px-3.5 py-2 text-sm font-semibold text-brand-500 transition-colors hover:bg-brand-500 hover:text-ink-900"
