@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, FormEvent } from "react";
+import Link from "next/link";
 import { useRequireAuth } from "@/lib/use-require-auth";
 import { useAuth } from "@/lib/auth-context";
 import { api, ApiError } from "@/lib/api";
@@ -10,7 +11,7 @@ import { Button } from "@/components/Button";
 
 export default function AccountPage() {
   const { token, loading: authLoading } = useRequireAuth();
-  const { updateToken } = useAuth();
+  const { updateToken, logout } = useAuth();
   const [me, setMe] = useState<AuthMeResponse | null>(null);
 
   const [phone, setPhone] = useState("");
@@ -127,6 +128,23 @@ export default function AccountPage() {
       <p className="mt-1 text-sm text-ink-500">
         Membre depuis le {new Date(me.createdAt).toLocaleDateString("fr-FR")}
       </p>
+
+      {me.role === "ADMIN" && (
+        <div className="mt-4 rounded-xl2 border-2 border-brand-500 bg-brand-50 p-4 shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-bold text-ink-900">Espace Administrateur</p>
+              <p className="text-xs text-ink-600">Gérer les commandes, catalogue, coupons et taux</p>
+            </div>
+            <Link
+              href="/admin"
+              className="shrink-0 rounded-lg border-2 border-ink-900 bg-ink-900 px-3 py-1.5 text-xs font-bold text-brand-500 hover:bg-brand-500 hover:text-ink-900"
+            >
+              Ouvrir l&apos;Admin →
+            </Link>
+          </div>
+        </div>
+      )}
 
       <div className="mt-6 rounded-xl2 border border-ink-100 bg-white p-6 shadow-soft">
         <h2 className="mb-4 text-sm font-semibold text-ink-900">Profil</h2>
@@ -252,6 +270,20 @@ export default function AccountPage() {
             Déconnecter les autres sessions
           </Button>
         )}
+      </div>
+
+      <div className="mt-6 rounded-xl2 border border-ink-100 bg-white p-6 shadow-soft">
+        <h2 className="mb-1 text-sm font-semibold text-ink-900">Déconnexion</h2>
+        <p className="mb-4 text-sm text-ink-500">
+          Ferme ta session sur cet appareil en toute sécurité.
+        </p>
+        <Button
+          variant="secondary"
+          className="w-full !border-rose-300 !text-rose-600 hover:!bg-rose-50"
+          onClick={logout}
+        >
+          Se déconnecter de cet appareil
+        </Button>
       </div>
     </main>
   );

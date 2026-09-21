@@ -86,7 +86,7 @@ export class CouponsService {
   }
 
   /** Checkout-page live preview: same validation as order creation, nothing persisted. */
-  async preview(userId: string, dto: PreviewCouponDto) {
+  async preview(userId: string | undefined, dto: PreviewCouponDto) {
     const priced = await this.catalog.computeOrderPrice(dto.catalogServiceId, dto.quantity);
     const result = await this.validateAndComputeDiscount(
       dto.code,
@@ -106,7 +106,7 @@ export class CouponsService {
    */
   async validateAndComputeDiscount(
     rawCode: string,
-    userId: string,
+    userId: string | undefined,
     priceBeforeDiscount: Decimal,
   ): Promise<CouponDiscountResult> {
     const code = rawCode.trim().toUpperCase();
@@ -127,11 +127,13 @@ export class CouponsService {
       );
     }
 
-    const alreadyRedeemed = await this.prisma.couponRedemption.findUnique({
-      where: { couponId_userId: { couponId: coupon.id, userId } },
-    });
-    if (alreadyRedeemed) {
-      throw new BadRequestException("Tu as déjà utilisé ce code promo");
+    if (userId) {
+      const alreadyRedeemed = await this.prisma.couponRedemption.findUnique({
+        where: { couponId_userId: { couponId: coupon.id, userId } },
+      });
+      if (alreadyRedeemed) {
+        throw new BadRequestException("Tu as déjà utilisé ce code promo");
+      }
     }
 
     let discountXof: Decimal;

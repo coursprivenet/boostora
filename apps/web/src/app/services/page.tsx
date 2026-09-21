@@ -216,20 +216,38 @@ function ServicesContent() {
 
   return (
     <main>
-      <section className="border-b-2 border-ink-900 bg-[#FFFBF0] px-6 py-10">
-        <div className="mx-auto flex max-w-[1600px] flex-col items-center gap-6 sm:flex-row sm:justify-center">
-          {/* eslint-disable-next-line @next/next/no-img-element -- static illustration asset */}
-          <img
-            src="/illustrations/hero/jump.svg"
-            alt=""
-            className="animate-hero-float w-28 shrink-0 sm:w-32"
-            style={{ animationDuration: "5s" }}
-          />
-          <div className="text-center sm:text-left">
-            <h1 className="text-3xl font-semibold tracking-tight text-ink-900">Nos services</h1>
-            <p className="mx-auto mt-2 max-w-xl text-ink-500 sm:mx-0">
-              Choisis un réseau, une quantité, et paie en Mobile Money.
-            </p>
+      <section className="border-b-2 border-ink-900 bg-[#FFFBF0] px-4 py-8 sm:px-6 sm:py-12">
+        <div className="mx-auto max-w-5xl text-center">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-ink-500 sm:text-sm">
+            Catalogue complet · Tous réseaux
+          </p>
+          <h1 className="mx-auto mt-3 max-w-3xl text-3xl font-bold leading-tight tracking-tight text-ink-900 sm:text-4xl lg:text-5xl">
+            Achète des abonnés, vues, likes et partages pour tous tes réseaux.
+          </h1>
+          <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-ink-600 sm:text-base">
+            Explore l&apos;ensemble de nos services pour propulser ta visibilité sur Instagram, TikTok, Facebook, YouTube et plus.
+            Choisis ton offre, ajuste la quantité selon tes objectifs et règle en Francs CFA par Mobile Money en toute simplicité.
+          </p>
+
+          <div className="mt-8 grid grid-cols-1 gap-3 text-left sm:grid-cols-3">
+            <div className="flex items-center gap-3 rounded-xl2 border-2 border-ink-900 bg-white p-3.5 shadow-sm">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-500 text-xs font-black text-ink-900">
+                01
+              </span>
+              <span className="text-xs font-bold text-ink-900 sm:text-sm">Paiement Mobile Money instantané</span>
+            </div>
+            <div className="flex items-center gap-3 rounded-xl2 border-2 border-ink-900 bg-white p-3.5 shadow-sm">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-500 text-xs font-black text-ink-900">
+                02
+              </span>
+              <span className="text-xs font-bold text-ink-900 sm:text-sm">Livraison rapide & suivi en direct</span>
+            </div>
+            <div className="flex items-center gap-3 rounded-xl2 border-2 border-ink-900 bg-white p-3.5 shadow-sm">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-500 text-xs font-black text-ink-900">
+                03
+              </span>
+              <span className="text-xs font-bold text-ink-900 sm:text-sm">Accessible dès 100 F CFA</span>
+            </div>
           </div>
         </div>
       </section>

@@ -77,7 +77,29 @@ export function Navbar() {
             className="h-9 w-auto object-contain sm:h-10"
           />
         </Link>
-        {!loading && user && <div className="lg:hidden">{notificationsLink}</div>}
+        {!loading && user && (
+          <div className="flex items-center gap-2 lg:hidden">
+            {user.role === "ADMIN" && (
+              <Link
+                href="/admin"
+                className="rounded-full border-2 border-ink-900 bg-brand-500 px-2.5 py-1 text-[11px] font-extrabold text-ink-900 shadow-sm"
+              >
+                Admin
+              </Link>
+            )}
+            {notificationsLink}
+          </div>
+        )}
+        {!loading && !user && (
+          <div className="flex items-center gap-2 lg:hidden">
+            <Link
+              href="/login"
+              className="rounded-lg border-2 border-ink-900 bg-brand-500 px-3 py-1.5 text-xs font-bold text-ink-900 shadow-sm transition active:scale-95"
+            >
+              Connexion
+            </Link>
+          </div>
+        )}
         <nav className="hidden items-center gap-6 text-sm font-medium text-ink-600 lg:flex">
           <Link href="/" className={linkClass("/")}>
             Accueil

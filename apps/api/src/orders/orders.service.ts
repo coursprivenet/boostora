@@ -4,7 +4,9 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  UnauthorizedException,
 } from "@nestjs/common";
+import { randomBytes } from "crypto";
 import { OrderStatus, PaymentStatus } from "@prisma/client";
 import Decimal from "decimal.js";
 import { PrismaService } from "../prisma/prisma.service";
@@ -124,7 +126,7 @@ export class OrdersService {
 
     const rows = orders.map((o) => [
       o.createdAt.toISOString(),
-      o.user.email,
+      o.user?.email ?? "Invité",
       o.catalogService.name,
       o.targetLink,
       o.quantity,
@@ -163,7 +165,7 @@ export class OrdersService {
    * The order only reaches PAID once the client completes send-otp + confirm below —
    * never on the strength of this call alone.
   */
-  async create(userId: string, dto: CreateOrderDto) {
+  async create(userId: string | undefined, dto: CreateOrderDto) {
     const [priced, costFxRate] = await Promise.all([
       this.catalog.computeOrderPrice(dto.catalogServiceId, dto.quantity),
       this.exchangeRate.getCurrentCostRate(),
@@ -249,9 +251,12 @@ export class OrdersService {
     const actualDiscountXof = Decimal.max(new Decimal(0), priced.priceClientXof.minus(finalPriceXof));
     const marginAfterDiscount = finalPriceXof.minus(priced.costProviderXof);
 
+    const trackingToken = randomBytes(16).toString("hex");
+
     const order = await this.prisma.order.create({
       data: {
-        userId,
+        userId: userId ?? null,
+        trackingToken,
         catalogServiceId: dto.catalogServiceId,
         targetLink: dto.targetLink,
         quantity: dto.quantity,
@@ -293,6 +298,7 @@ export class OrdersService {
         });
         return {
           orderId: order.id,
+          trackingToken: order.trackingToken ?? trackingToken,
           expiresAt: expiresAt.toISOString(),
           priceClientXof: finalPriceXof.toString(),
           discountXof: actualDiscountXof.toString(),
@@ -321,6 +327,7 @@ export class OrdersService {
 
       return {
         orderId: order.id,
+        trackingToken: order.trackingToken ?? trackingToken,
         expiresAt: init.expiresAt ?? new Date(Date.now() + 30 * 60_000).toISOString(),
         priceClientXof: finalPriceXof.toString(),
         discountXof: actualDiscountXof.toString(),
@@ -345,7 +352,8 @@ export class OrdersService {
    * user+service+link+quantity, opened in the last two minutes, is reused as-is
    * instead of creating a new one.
    */
-  private async findReusableDuplicate(userId: string, dto: CreateOrderDto) {
+  private async findReusableDuplicate(userId: string | undefined, dto: CreateOrderDto) {
+    if (!userId) return null;
     const cutoff = new Date(Date.now() - 2 * 60_000);
     const existing = await this.prisma.order.findFirst({
       where: {
@@ -385,7 +393,7 @@ export class OrdersService {
    * Gives the client the original payment intent back so they can continue an
    * interrupted checkout. It deliberately never creates another order or intent.
    */
-  async getPaymentResume(userId: string, orderId: string) {
+  async getPaymentResume(userId: string | undefined, orderId: string) {
     const { order, payment } = await this.getPayableOrderOrThrow(userId, orderId);
     if (order.orderStatus !== OrderStatus.PENDING_PAYMENT || payment.status !== PaymentStatus.PENDING) {
       throw new BadRequestException("Cette commande ne peut plus être reprise pour le paiement");
@@ -411,7 +419,7 @@ export class OrdersService {
    * The direct API only exposes Mobile Money. Card/PayPal are intentionally added
    * from the existing operator-selection screen and continue in YengaPay Checkout.
    */
-  async createHostedCheckout(userId: string, orderId: string) {
+  async createHostedCheckout(userId: string | undefined, orderId: string) {
     const { order, payment } = await this.getPayableOrderOrThrow(userId, orderId);
     if (payment.operatorCode) {
       throw new BadRequestException("Choisis à nouveau le paiement depuis la commande si tu veux changer de moyen");
@@ -461,7 +469,7 @@ export class OrdersService {
 
   /** Opens a Cryptomus invoice for an existing unpaid order. The YengaPay intent, if
    * any, remains unpaid and is never treated as success after this provider switch. */
-  async createCryptomusPayment(userId: string, orderId: string) {
+  async createCryptomusPayment(userId: string | undefined, orderId: string) {
     const { order, payment } = await this.getPayableOrderOrThrow(userId, orderId);
     const existing = payment.rawInitResponse as { provider?: string; checkoutUrl?: string } | null;
     if (existing?.provider === "CRYPTOMUS" && existing.checkoutUrl) {
@@ -483,8 +491,12 @@ export class OrdersService {
         amountUsd,
         orderId: order.id,
         callbackUrl,
-        returnUrl: `${appUrl}/dashboard/orders/${order.id}`,
-        successUrl: `${appUrl}/dashboard/orders/${order.id}`,
+        returnUrl: order.trackingToken
+          ? `${appUrl}/suivi/${order.id}?key=${order.trackingToken}`
+          : `${appUrl}/dashboard/orders/${order.id}`,
+        successUrl: order.trackingToken
+          ? `${appUrl}/suivi/${order.id}?key=${order.trackingToken}`
+          : `${appUrl}/dashboard/orders/${order.id}`,
       });
       await this.prisma.payment.update({
         where: { id: payment.id },
@@ -511,7 +523,7 @@ export class OrdersService {
   }
 
   /** Replaces an unpaid payment intent when the customer changes country. */
-  async changePaymentCountry(userId: string, orderId: string, paymentCountryCode: "BF" | "CI" | "BJ" | "OTHER") {
+  async changePaymentCountry(userId: string | undefined, orderId: string, paymentCountryCode: "BF" | "CI" | "BJ" | "OTHER") {
     const { order, payment } = await this.getPayableOrderOrThrow(userId, orderId);
     const expiresAt = new Date(Date.now() + 30 * 60_000);
     if (paymentCountryCode === "OTHER") {
@@ -580,7 +592,7 @@ export class OrdersService {
     }
   }
 
-  async sendOtp(userId: string, orderId: string, dto: SendOtpDto) {
+  async sendOtp(userId: string | undefined, orderId: string, dto: SendOtpDto) {
     const { payment } = await this.getPayableOrderOrThrow(userId, orderId);
 
     await this.prisma.payment.update({
@@ -603,7 +615,7 @@ export class OrdersService {
     }
   }
 
-  async confirmPayment(userId: string, orderId: string, dto: ConfirmPaymentDto) {
+  async confirmPayment(userId: string | undefined, orderId: string, dto: ConfirmPaymentDto) {
     const { order, payment } = await this.getPayableOrderOrThrow(userId, orderId);
 
     let result;
@@ -661,16 +673,18 @@ export class OrdersService {
     ]);
 
     this.logger.log(`Order ${order.id} paid via Yengapay (transactionId=${result.transactionId})`);
-    await this.notifications.notify(
-      userId,
-      "order.paid",
-      "Paiement confirmé",
-      "Ta commande a été payée et va être transmise au fournisseur.",
-      `/dashboard/orders/${order.id}`,
-    );
+    if (userId) {
+      await this.notifications.notify(
+        userId,
+        "order.paid",
+        "Paiement confirmé",
+        "Ta commande a été payée et va être transmise au fournisseur.",
+        `/dashboard/orders/${order.id}`,
+      );
 
-    if (order.couponId) {
-      await this.coupons.recordRedemption(order.couponId, userId, order.id, order.discountXof.toString());
+      if (order.couponId) {
+        await this.coupons.recordRedemption(order.couponId, userId, order.id, order.discountXof.toString());
+      }
     }
     await this.ensureSubmittedToProvider(order.id);
     return result;
@@ -725,7 +739,7 @@ export class OrdersService {
         where: { id: payment.orderId },
         select: { couponId: true, discountXof: true, userId: true },
       });
-      if (order) {
+      if (order?.userId) {
         await this.notifications.notify(
           order.userId,
           "order.paid",
@@ -733,14 +747,14 @@ export class OrdersService {
           "Ta commande a été payée et va être transmise au fournisseur.",
           `/dashboard/orders/${payment.orderId}`,
         );
-      }
-      if (order?.couponId) {
-        await this.coupons.recordRedemption(
-          order.couponId,
-          order.userId,
-          payment.orderId,
-          order.discountXof.toString(),
-        );
+        if (order.couponId) {
+          await this.coupons.recordRedemption(
+            order.couponId,
+            order.userId,
+            payment.orderId,
+            order.discountXof.toString(),
+          );
+        }
       }
     } else {
       // Already confirmed synchronously — still record the webhook payload and the
@@ -806,7 +820,7 @@ export class OrdersService {
         where: { id: payment.orderId },
         select: { couponId: true, discountXof: true, userId: true },
       });
-      if (order) {
+      if (order?.userId) {
         await this.notifications.notify(
           order.userId,
           "order.paid",
@@ -895,13 +909,15 @@ export class OrdersService {
       this.logger.error(`Provider submission failed for order ${order.id}: ${(err as Error).message}`);
 
       if (!isRetryable) {
-        await this.notifications.notify(
-          order.userId,
-          "order.submit_failed",
-          "Un problème est survenu avec ta commande",
-          "Notre équipe a été alertée et va régulariser ça rapidement.",
-          `/dashboard/orders/${order.id}`,
-        );
+        if (order.userId) {
+          await this.notifications.notify(
+            order.userId,
+            "order.submit_failed",
+            "Un problème est survenu avec ta commande",
+            "Notre équipe a été alertée et va régulariser ça rapidement.",
+            `/dashboard/orders/${order.id}`,
+          );
+        }
         // The client sees a reassuring "on s'en occupe" — admins need the real reason
         // (most often: PanelFollows balance ran dry) so someone actually acts on it.
         const reason = err instanceof PanelFollowsApiError ? err.message : (err as Error).message;
@@ -949,7 +965,7 @@ export class OrdersService {
       ],
       [OrderStatus.CANCELLED]: ["Commande annulée", "Ta commande a été annulée par le fournisseur."],
     };
-    if (mapped && NOTIFY_MESSAGES[mapped]) {
+    if (order.userId && mapped && NOTIFY_MESSAGES[mapped]) {
       const [title, body] = NOTIFY_MESSAGES[mapped]!;
       await this.notifications.notify(order.userId, `order.${mapped.toLowerCase()}`, title, body, `/dashboard/orders/${order.id}`);
     }
@@ -970,25 +986,29 @@ export class OrdersService {
         where: { id: refill.orderId },
         data: { orderStatus: OrderStatus.REFILL_DONE },
       });
-      await this.notifications.notify(
-        order.userId,
-        "order.refill_done",
-        "Refill effectué",
-        "Le fournisseur a complété ton refill.",
-        `/dashboard/orders/${order.id}`,
-      );
+      if (order.userId) {
+        await this.notifications.notify(
+          order.userId,
+          "order.refill_done",
+          "Refill effectué",
+          "Le fournisseur a complété ton refill.",
+          `/dashboard/orders/${order.id}`,
+        );
+      }
     } else if (normalized === "rejected" || normalized === "failed") {
       const order = await this.prisma.order.update({
         where: { id: refill.orderId },
         data: { orderStatus: OrderStatus.REFILL_FAILED },
       });
-      await this.notifications.notify(
-        order.userId,
-        "order.refill_failed",
-        "Refill refusé",
-        "Le fournisseur a refusé la demande de refill.",
-        `/dashboard/orders/${order.id}`,
-      );
+      if (order.userId) {
+        await this.notifications.notify(
+          order.userId,
+          "order.refill_failed",
+          "Refill refusé",
+          "Le fournisseur a refusé la demande de refill.",
+          `/dashboard/orders/${order.id}`,
+        );
+      }
     }
   }
 
@@ -1113,13 +1133,15 @@ export class OrdersService {
     });
 
     await this.auditLog.record(actorUserId, "order.refund", order.id, { amountXof, reason: dto.reason });
-    await this.notifications.notify(
-      order.userId,
-      "order.refunded",
-      "Remboursement effectué",
-      `Un remboursement de ${amountXof} FCFA a été envoyé sur ton compte mobile money.`,
-      `/dashboard/orders/${order.id}`,
-    );
+    if (order.userId) {
+      await this.notifications.notify(
+        order.userId,
+        "order.refunded",
+        "Remboursement effectué",
+        `Un remboursement de ${amountXof} FCFA a été envoyé sur ton compte mobile money.`,
+        `/dashboard/orders/${order.id}`,
+      );
+    }
 
     return { status: "refunded", amountXof };
   }
@@ -1135,13 +1157,16 @@ export class OrdersService {
     return order;
   }
 
-  private async getPayableOrderOrThrow(userId: string, orderId: string) {
+  private async getPayableOrderOrThrow(userId: string | undefined, orderId: string) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
       include: { payment: true },
     });
 
-    if (!order || order.userId !== userId) {
+    if (!order) {
+      throw new NotFoundException("Commande introuvable");
+    }
+    if (order.userId && order.userId !== userId) {
       throw new NotFoundException("Commande introuvable");
     }
     if (!order.payment) {
@@ -1165,5 +1190,139 @@ export class OrdersService {
     }
 
     return { order, payment: order.payment };
+  }
+
+  /**
+   * Public tracking: retrieves live progression and status of any order
+   * using its secret trackingToken.
+   */
+  async getByTrackingToken(token: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { trackingToken: token },
+      include: {
+        catalogService: {
+          include: { providerService: true },
+        },
+        payment: true,
+      },
+    });
+    if (!order) {
+      throw new NotFoundException("Commande introuvable avec cette clé de suivi");
+    }
+
+    const delivered =
+      order.startCount != null && order.remains != null
+        ? Math.max(0, order.quantity - order.remains)
+        : null;
+    const progressPercent =
+      delivered != null && order.quantity > 0
+        ? Math.min(100, Math.round(((delivered as number) / order.quantity) * 100))
+        : null;
+
+    return {
+      orderId: order.id,
+      trackingToken: order.trackingToken,
+      targetLink: order.targetLink,
+      quantity: order.quantity,
+      serviceName: order.catalogService.name,
+      platform: order.catalogService.providerService.platform,
+      priceClientXof: order.priceClientXof.toString(),
+      paymentStatus: order.paymentStatus,
+      orderStatus: order.orderStatus,
+      startCount: order.startCount,
+      remains: order.remains,
+      delivered,
+      progressPercent,
+      createdAt: order.createdAt.toISOString(),
+      paidAt: order.paidAt?.toISOString() ?? null,
+      refillSupported: order.catalogService.providerService.refillSupported,
+      canRefill:
+        order.orderStatus === OrderStatus.COMPLETED &&
+        order.catalogService.providerService.refillSupported,
+      hasAccount: Boolean(order.userId),
+    };
+  }
+
+  /**
+   * Public refill trigger using secret trackingToken.
+   * Only allowed when the order is marked COMPLETED, provider supports refill,
+   * and a providerOrderId exists.
+   */
+  async requestRefillByTracking(token: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { trackingToken: token },
+      include: {
+        catalogService: { include: { providerService: true } },
+      },
+    });
+    if (!order) {
+      throw new NotFoundException("Commande introuvable");
+    }
+    if (order.orderStatus !== OrderStatus.COMPLETED) {
+      throw new BadRequestException("Le refill n'est possible que pour une commande terminée");
+    }
+    if (!order.catalogService.providerService.refillSupported) {
+      throw new BadRequestException("Refill non supporté pour ce service");
+    }
+    if (!order.providerOrderId) {
+      throw new BadRequestException("Commande fournisseur introuvable");
+    }
+
+    const refillRow = await this.prisma.refillRequest.create({
+      data: {
+        orderId: order.id,
+        status: "PENDING",
+      },
+    });
+
+    await this.prisma.order.update({
+      where: { id: order.id },
+      data: { orderStatus: OrderStatus.REFILL_REQUESTED },
+    });
+
+    try {
+      const result = await this.panelFollows.refillOrder(order.providerOrderId);
+      await this.prisma.refillRequest.update({
+        where: { id: refillRow.id },
+        data: { providerRefillId: result.id, status: result.status },
+      });
+      await this.auditLog.record(order.userId ?? "guest", "order.refill_request", order.id);
+      return { status: "requested", providerRefillId: result.id };
+    } catch (err) {
+      await Promise.all([
+        this.prisma.refillRequest.update({
+          where: { id: refillRow.id },
+          data: { status: "REJECTED" },
+        }),
+        this.prisma.order.update({
+          where: { id: order.id },
+          data: { orderStatus: OrderStatus.REFILL_FAILED },
+        }),
+      ]);
+      throw new BadRequestException(`Refill refusé : ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  /**
+   * Associates a guest order with an authenticated user account.
+   */
+  async claimByTracking(token: string, userId: string | undefined) {
+    if (!userId) {
+      throw new UnauthorizedException("Connecte-toi pour rattacher cette commande à ton compte");
+    }
+    const order = await this.prisma.order.findUnique({
+      where: { trackingToken: token },
+    });
+    if (!order) {
+      throw new NotFoundException("Commande introuvable");
+    }
+    if (order.userId && order.userId !== userId) {
+      throw new BadRequestException("Cette commande est déjà rattachée à un autre compte");
+    }
+    await this.prisma.order.update({
+      where: { id: order.id },
+      data: { userId },
+    });
+    return { claimed: true, orderId: order.id };
   }
 }

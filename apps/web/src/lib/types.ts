@@ -64,12 +64,34 @@ export interface YengapayOperator {
 
 export interface CreateOrderResponse {
   orderId: string;
+  trackingToken?: string;
   expiresAt: string;
   priceClientXof: string;
   discountXof: string;
   availableOperators: YengapayOperator[];
   /** Secure provider-hosted page for card and PayPal payments. */
   checkoutUrl?: string;
+}
+
+export interface TrackingOrderResponse {
+  orderId: string;
+  trackingToken: string;
+  targetLink: string;
+  quantity: number;
+  serviceName: string;
+  platform: string;
+  priceClientXof: string;
+  paymentStatus: string;
+  orderStatus: string;
+  startCount: number | null;
+  remains: number | null;
+  delivered: number | null;
+  progressPercent: number | null;
+  createdAt: string;
+  paidAt: string | null;
+  refillSupported: boolean;
+  canRefill: boolean;
+  hasAccount: boolean;
 }
 
 export type CouponDiscountType = "PERCENT" | "FIXED_XOF";

@@ -11,3 +11,6 @@ coverage/
 .turbo/
 generated/
 pnpm-lock.yaml
+
+.vercel
+*.tsbuildinfo

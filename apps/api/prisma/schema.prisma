@@ -174,8 +174,9 @@ model ExchangeRate {
 
 model Order {
   id               String   @id @default(cuid())
-  userId           String
-  user             User     @relation(fields: [userId], references: [id])
+  userId           String?
+  user             User?    @relation(fields: [userId], references: [id])
+  trackingToken    String?  @unique
   catalogServiceId String
   catalogService   CatalogService @relation(fields: [catalogServiceId], references: [id])
 

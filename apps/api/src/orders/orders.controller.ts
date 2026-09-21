@@ -3,6 +3,7 @@ import { Throttle } from "@nestjs/throttler";
 import { Response } from "express";
 import { UserRole } from "@prisma/client";
 import { Roles } from "../auth/decorators/roles.decorator";
+import { Public } from "../auth/decorators/public.decorator";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { AuthenticatedUser } from "../auth/strategies/jwt.strategy";
 import { OrdersService } from "./orders.service";
@@ -36,6 +37,31 @@ export class OrdersController {
     res.send(csv);
   }
 
+  /** Public tracking endpoint for guest and authenticated orders via secret trackingToken. */
+  @Public()
+  @Get("tracking/:token")
+  getTracking(@Param("token") token: string) {
+    return this.orders.getByTrackingToken(token);
+  }
+
+  /** Refill requested via secret trackingToken — checks completion and drop conditions. */
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Post("tracking/:token/refill")
+  refillByTracking(@Param("token") token: string) {
+    return this.orders.requestRefillByTracking(token);
+  }
+
+  /** Claim an order to associate it with an authenticated account. */
+  @Public()
+  @Post("tracking/:token/claim")
+  claimByTracking(
+    @Param("token") token: string,
+    @CurrentUser() user: AuthenticatedUser | undefined,
+  ) {
+    return this.orders.claimByTracking(token, user?.id);
+  }
+
   /** Manual recovery for orders stuck in RETRY_SUBMIT/SUBMIT_FAILED — no-ops if already submitted. */
   @Roles(UserRole.ADMIN)
   @Post(":id/submit-to-provider")
@@ -49,55 +75,63 @@ export class OrdersController {
   }
 
   /** Reopens the payment step for an unpaid, non-expired order without creating a duplicate. */
+  @Public()
   @Get(":id/payment/resume")
-  resumePayment(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string) {
-    return this.orders.getPaymentResume(user.id, id);
+  resumePayment(@CurrentUser() user: AuthenticatedUser | undefined, @Param("id") id: string) {
+    return this.orders.getPaymentResume(user?.id, id);
   }
 
   // Each attempt can hit the real Yengapay API — cap how fast one account can spam it.
+  // Supports unauthenticated/guest order creation.
+  @Public()
   @Throttle({ default: { limit: 15, ttl: 60_000 } })
   @Post()
-  create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateOrderDto) {
-    return this.orders.create(user.id, dto);
+  create(@CurrentUser() user: AuthenticatedUser | undefined, @Body() dto: CreateOrderDto) {
+    return this.orders.create(user?.id, dto);
   }
 
   /** Opens the provider-hosted checkout only after the customer chose card/PayPal. */
+  @Public()
   @Post(":id/payment/checkout")
-  checkoutPayment(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string) {
-    return this.orders.createHostedCheckout(user.id, id);
+  checkoutPayment(@CurrentUser() user: AuthenticatedUser | undefined, @Param("id") id: string) {
+    return this.orders.createHostedCheckout(user?.id, id);
   }
 
   /** Opens the provider-hosted Cryptomus invoice after the customer chooses crypto. */
+  @Public()
   @Post(":id/payment/crypto")
-  cryptoPayment(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string) {
-    return this.orders.createCryptomusPayment(user.id, id);
+  cryptoPayment(@CurrentUser() user: AuthenticatedUser | undefined, @Param("id") id: string) {
+    return this.orders.createCryptomusPayment(user?.id, id);
   }
 
+  @Public()
   @Post(":id/payment/change-country")
   changePaymentCountry(
-    @CurrentUser() user: AuthenticatedUser,
+    @CurrentUser() user: AuthenticatedUser | undefined,
     @Param("id") id: string,
     @Body() dto: ChangePaymentCountryDto,
   ) {
-    return this.orders.changePaymentCountry(user.id, id, dto.paymentCountryCode);
+    return this.orders.changePaymentCountry(user?.id, id, dto.paymentCountryCode);
   }
 
+  @Public()
   @Post(":id/payment/send-otp")
   sendOtp(
-    @CurrentUser() user: AuthenticatedUser,
+    @CurrentUser() user: AuthenticatedUser | undefined,
     @Param("id") id: string,
     @Body() dto: SendOtpDto,
   ) {
-    return this.orders.sendOtp(user.id, id, dto);
+    return this.orders.sendOtp(user?.id, id, dto);
   }
 
+  @Public()
   @Post(":id/payment/confirm")
   confirmPayment(
-    @CurrentUser() user: AuthenticatedUser,
+    @CurrentUser() user: AuthenticatedUser | undefined,
     @Param("id") id: string,
     @Body() dto: ConfirmPaymentDto,
   ) {
-    return this.orders.confirmPayment(user.id, id, dto);
+    return this.orders.confirmPayment(user?.id, id, dto);
   }
 
   @Post(":id/cancel")

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, FormEvent } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useRequireAuth } from "@/lib/use-require-auth";
+import { useAuth } from "@/lib/auth-context";
 import { api, ApiError } from "@/lib/api";
 import { CatalogItem, CouponPreview, CreateOrderResponse, YengapayOperator } from "@/lib/types";
 import { formatXof } from "@/lib/format";
@@ -80,8 +80,8 @@ type Step =
   | { kind: "country"; created: CreateOrderResponse }
   | { kind: "operator"; created: CreateOrderResponse }
   | { kind: "otp"; created: CreateOrderResponse; operator: YengapayOperator; otpSent: boolean }
-  | { kind: "success"; transactionId: string }
-  | { kind: "pending"; orderId: string };
+  | { kind: "success"; transactionId: string; created?: CreateOrderResponse }
+  | { kind: "pending"; orderId: string; created?: CreateOrderResponse };
 
 function PaymentOperatorMark({ operator }: { operator: YengapayOperator }) {
   const marks: Record<string, { src: string; alt: string }> = {
@@ -154,7 +154,7 @@ export default function CheckoutPage() {
   const { catalogServiceId } = useParams<{ catalogServiceId: string }>();
   const searchParams = useSearchParams();
   const resumeOrderId = searchParams.get("resume");
-  const { token, loading: authLoading } = useRequireAuth();
+  const { user, token, loading: authLoading } = useAuth();
   const router = useRouter();
 
   const [item, setItem] = useState<CatalogItem | null>(null);
@@ -191,7 +191,7 @@ export default function CheckoutPage() {
   const payablePrice = livePrice ? Math.max(Number(livePrice), paymentCountryCode === "OTHER" ? 0 : 100) : null;
 
   async function checkCoupon() {
-    if (!token || !item || !couponCode.trim()) return;
+    if (!item || !couponCode.trim()) return;
     setCouponChecking(true);
     setCouponError(null);
     setCouponPreview(null);
@@ -199,7 +199,7 @@ export default function CheckoutPage() {
       const preview = await api.post<CouponPreview>(
         "/coupons/preview",
         { code: couponCode.trim(), catalogServiceId: item.id, quantity },
-        token,
+        token || undefined,
       );
       setCouponPreview(preview);
     } catch (err) {
@@ -327,7 +327,7 @@ export default function CheckoutPage() {
 
   async function submitOrder(e: FormEvent) {
     e.preventDefault();
-    if (!token || !item) return;
+    if (!item) return;
     if (dripfeedEnabled) {
       if (!canUseDripfeed) {
         setError(`Choisis au moins ${item.minQuantity * 2} unités pour répartir cette commande en 2 lots.`);
@@ -354,7 +354,7 @@ export default function CheckoutPage() {
           acceptedTerms,
           paymentCountryCode,
         },
-        token,
+        token || undefined,
       );
       openCountrySelection(created);
     } catch (err) {
@@ -379,11 +379,14 @@ export default function CheckoutPage() {
     : step.kind === "operator" ? step.created.availableOperators : [];
 
   async function chooseHostedCheckout(orderId: string) {
-    if (!token) return;
     setBusy(true);
     setError(null);
     try {
-      const { checkoutUrl } = await api.post<{ checkoutUrl: string }>(`/orders/${orderId}/payment/checkout`, {}, token);
+      const { checkoutUrl } = await api.post<{ checkoutUrl: string }>(
+        `/orders/${orderId}/payment/checkout`,
+        {},
+        token || undefined,
+      );
       window.location.assign(checkoutUrl);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Impossible d'ouvrir le paiement sécurisé");
@@ -392,11 +395,14 @@ export default function CheckoutPage() {
   }
 
   async function chooseCryptomusPayment(orderId: string) {
-    if (!token) return;
     setBusy(true);
     setError(null);
     try {
-      const { checkoutUrl } = await api.post<{ checkoutUrl: string }>(`/orders/${orderId}/payment/crypto`, {}, token);
+      const { checkoutUrl } = await api.post<{ checkoutUrl: string }>(
+        `/orders/${orderId}/payment/crypto`,
+        {},
+        token || undefined,
+      );
       window.location.assign(checkoutUrl);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Le paiement crypto est temporairement indisponible");
@@ -405,14 +411,14 @@ export default function CheckoutPage() {
   }
 
   async function applyPaymentCountryChange(created: CreateOrderResponse) {
-    if (!token || !paymentCountryCode) return;
+    if (!paymentCountryCode) return;
     setBusy(true);
     setError(null);
     try {
       const updated = await api.post<CreateOrderResponse>(
         `/orders/${created.orderId}/payment/change-country`,
         { paymentCountryCode },
-        token,
+        token || undefined,
       );
       setStep({ kind: "operator", created: updated });
     } catch (err) {
@@ -423,14 +429,13 @@ export default function CheckoutPage() {
   }
 
   async function sendOtp(created: CreateOrderResponse, operator: YengapayOperator) {
-    if (!token) return;
     setBusy(true);
     setError(null);
     try {
       await api.post(
         `/orders/${created.orderId}/payment/send-otp`,
         { operatorCode: operator.code, countryCode: operator.countryCode, customerMSISDN: phone },
-        token,
+        token || undefined,
       );
       setStep({ kind: "otp", created, operator, otpSent: true });
     } catch (err) {
@@ -441,20 +446,19 @@ export default function CheckoutPage() {
   }
 
   async function confirmPayment(created: CreateOrderResponse, operator: YengapayOperator) {
-    if (!token) return;
     setBusy(true);
     setError(null);
     try {
       const result = await api.post<{ status: string; transactionId?: string }>(
         `/orders/${created.orderId}/payment/confirm`,
         { operatorCode: operator.code, countryCode: operator.countryCode, customerMSISDN: phone, otp },
-        token,
+        token || undefined,
       );
       if (result.status === "DONE" && result.transactionId) {
-        setStep({ kind: "success", transactionId: result.transactionId });
+        setStep({ kind: "success", transactionId: result.transactionId, created });
       } else {
         // Yengapay hasn't confirmed synchronously — our webhook will settle it shortly.
-        setStep({ kind: "pending", orderId: created.orderId });
+        setStep({ kind: "pending", orderId: created.orderId, created });
       }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Paiement refusé");
@@ -463,7 +467,7 @@ export default function CheckoutPage() {
     }
   }
 
-  if (authLoading || !token) return null;
+  if (authLoading) return null;
   if (loadError) return <main className="mx-auto max-w-lg px-6 py-10 text-rose-600">{loadError}</main>;
   if (!item) return <main className="mx-auto max-w-lg px-6 py-10 text-ink-400">Chargement…</main>;
 
@@ -897,13 +901,45 @@ export default function CheckoutPage() {
                 <div className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-ink-900 bg-emerald-100 text-2xl text-emerald-600">
                   ✓
                 </div>
-                <p className="text-lg font-semibold text-ink-900">Paiement confirmé</p>
+                <p className="text-lg font-semibold text-ink-900">Paiement confirmé !</p>
                 <p className="text-sm text-ink-500">
                   Ta commande est en cours de traitement. Réf. transaction : {step.transactionId}
                 </p>
-                <Button onClick={() => router.push("/dashboard")} className="mt-2">
-                  Voir mes commandes
-                </Button>
+
+                {step.created?.trackingToken ? (
+                  <div className="mt-3 w-full rounded-xl2 border-2 border-ink-900 bg-amber-50 p-4 text-left">
+                    <p className="text-xs font-bold text-ink-900">
+                      🔒 Ton lien de suivi secret et garantie refill
+                    </p>
+                    <p className="mt-1 text-xs text-ink-700">
+                      Conserve précieusement ce lien dans tes favoris pour suivre l&apos;état d&apos;avancement en temps réel
+                      et demander un rechargement (refill) en cas de baisse.
+                    </p>
+                    <div className="mt-3 flex flex-col gap-2">
+                      <Button
+                        onClick={() =>
+                          router.push(`/suivi/${step.created?.orderId}?key=${step.created?.trackingToken}`)
+                        }
+                        className="w-full"
+                      >
+                        Suivre ma commande en direct ⚡
+                      </Button>
+                      {user && (
+                        <Button
+                          variant="secondary"
+                          onClick={() => router.push("/dashboard")}
+                          className="w-full"
+                        >
+                          Voir mes commandes
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <Button onClick={() => router.push(user ? "/dashboard" : "/")} className="mt-2">
+                    {user ? "Voir mes commandes" : "Retour à l'accueil"}
+                  </Button>
+                )}
               </div>
             )}
 
@@ -914,12 +950,34 @@ export default function CheckoutPage() {
                 </div>
                 <p className="text-lg font-semibold text-ink-900">Paiement en cours de vérification</p>
                 <p className="text-sm text-ink-500">
-                  L&apos;opérateur confirme le paiement. Cela prend généralement quelques instants.
-                  Ta commande apparaîtra comme payée dès que ce sera fait.
+                  L&apos;opérateur confirme le paiement. Ta commande sera activée dès validation automatique.
                 </p>
-                <Button onClick={() => router.push(`/dashboard/orders/${step.orderId}`)} className="mt-2">
-                  Suivre ma commande
-                </Button>
+
+                {step.created?.trackingToken ? (
+                  <div className="mt-3 w-full rounded-xl2 border-2 border-ink-900 bg-amber-50 p-4 text-left">
+                    <p className="text-xs font-bold text-ink-900">
+                      🔒 Ton lien de suivi en direct
+                    </p>
+                    <p className="mt-1 text-xs text-ink-700">
+                      Garde ce lien pour voir quand le paiement est validé et suivre l&apos;avancement des livraisons.
+                    </p>
+                    <Button
+                      onClick={() =>
+                        router.push(`/suivi/${step.created?.orderId}?key=${step.created?.trackingToken}`)
+                      }
+                      className="mt-3 w-full"
+                    >
+                      Accéder au suivi en direct ⚡
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    onClick={() => router.push(user ? `/dashboard/orders/${step.orderId}` : "/")}
+                    className="mt-2"
+                  >
+                    {user ? "Suivre ma commande" : "Retour à l'accueil"}
+                  </Button>
+                )}
               </div>
             )}
           </div>

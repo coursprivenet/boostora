@@ -12,10 +12,11 @@ import { PreviewCouponDto } from "./dto/preview-coupon.dto";
 export class CouponsController {
   constructor(private readonly coupons: CouponsService) {}
 
-  /** Any authenticated client can preview a code at checkout — nothing is persisted here. */
+  /** Any client (guest or authenticated) can preview a code at checkout — nothing is persisted here. */
+  @Public()
   @Post("preview")
-  preview(@CurrentUser() user: AuthenticatedUser, @Body() dto: PreviewCouponDto) {
-    return this.coupons.preview(user.id, dto);
+  preview(@CurrentUser() user: AuthenticatedUser | undefined, @Body() dto: PreviewCouponDto) {
+    return this.coupons.preview(user?.id, dto);
   }
 
   /** Public — lets checkout hide the coupon field entirely when there's nothing to redeem. */
