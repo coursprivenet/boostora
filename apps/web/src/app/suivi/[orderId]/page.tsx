@@ -195,8 +195,6 @@ export default function TrackingPage() {
               <span className="text-xs font-bold uppercase tracking-wider text-ink-400">
                 {order.platform}
               </span>
-              <span className="text-ink-300">•</span>
-              <span className="text-xs text-ink-400">Réf. #{order.orderId.slice(0, 8)}</span>
             </div>
             <h1 className="mt-1 text-xl font-bold text-ink-900 sm:text-2xl">
               {order.serviceName}
