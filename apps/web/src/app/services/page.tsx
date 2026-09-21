@@ -6,6 +6,8 @@ import { api } from "@/lib/api";
 import { CatalogItem } from "@/lib/types";
 import { ServiceCard } from "@/components/ServiceCard";
 import { Tooltip } from "@/components/Tooltip";
+import { NetworkLogo } from "@/components/NetworkLogo";
+import type { SocialNetworkSlug } from "@/lib/social-networks";
 
 const PAGE_SIZE = 20;
 const PLATFORM_PREFIXES = ["Instagram", "TikTok", "Facebook", "YouTube", "Spotify", "X", "WhatsApp", "Snapchat", "LinkedIn", "Telegram"];
@@ -257,23 +259,57 @@ function ServicesContent() {
           <div className="mb-6 flex flex-wrap justify-center gap-1.5 sm:gap-2">
             <button
               onClick={() => setPlatformFilter(null)}
-              className={`rounded-full border-2 border-ink-900 px-4 py-1.5 text-sm font-semibold uppercase transition-colors ${
-                platformFilter === null ? "bg-ink-900 text-brand-500" : "bg-white text-ink-900 hover:bg-brand-300/40"
+              className={`inline-flex items-center gap-1.5 rounded-full border-2 border-ink-900 px-3.5 py-1.5 text-xs sm:text-sm font-semibold uppercase transition-all active:scale-95 ${
+                platformFilter === null
+                  ? "bg-ink-900 text-brand-500 shadow-sm"
+                  : "bg-white text-ink-900 hover:bg-brand-300/40"
               }`}
             >
-              Tous ({services?.length ?? 0})
-            </button>
-            {platforms.map(([pf, count]) => (
-              <button
-                key={pf}
-                onClick={() => setPlatformFilter(pf)}
-                className={`rounded-full border-2 border-ink-900 px-4 py-1.5 text-sm font-semibold uppercase transition-colors ${
-                  platformFilter === pf ? "bg-ink-900 text-brand-500" : "bg-white text-ink-900 hover:bg-brand-300/40"
-                }`}
+              <svg
+                className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
               >
-                {PLATFORM_LABELS[pf] ?? pf} ({count})
-              </button>
-            ))}
+                <circle cx="12" cy="12" r="10" />
+                <line x1="2" y1="12" x2="22" y2="12" />
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+              </svg>
+              <span>Tous</span>
+              <span className={`text-[11px] font-bold ${platformFilter === null ? "text-brand-300" : "text-ink-400"}`}>
+                ({services?.length ?? 0})
+              </span>
+            </button>
+            {platforms.map(([pf, count]) => {
+              const slug = pf.toLowerCase() as SocialNetworkSlug;
+              const isKnown = [
+                "instagram", "tiktok", "facebook", "youtube", "spotify",
+                "twitter", "whatsapp", "snapchat", "linkedin", "telegram"
+              ].includes(slug);
+
+              return (
+                <button
+                  key={pf}
+                  onClick={() => setPlatformFilter(pf)}
+                  className={`inline-flex items-center gap-2 rounded-full border-2 border-ink-900 px-3.5 py-1.5 text-xs sm:text-sm font-semibold uppercase transition-all active:scale-95 ${
+                    platformFilter === pf
+                      ? "bg-ink-900 text-brand-500 shadow-sm"
+                      : "bg-white text-ink-900 hover:bg-brand-300/40"
+                  }`}
+                >
+                  {isKnown && (
+                    <NetworkLogo network={slug} className="h-4 w-4 shrink-0" />
+                  )}
+                  <span>{PLATFORM_LABELS[pf] ?? pf}</span>
+                  <span className={`text-[11px] font-bold ${platformFilter === pf ? "text-brand-300" : "text-ink-400"}`}>
+                    ({count})
+                  </span>
+                </button>
+              );
+            })}
           </div>
         )}
 
