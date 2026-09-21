@@ -53,7 +53,7 @@ export function MobileBottomNav() {
   const items = [
     { href: "/", label: "Accueil", Icon: HomeIcon },
     { href: user ? "/dashboard" : "/login", label: "Commandes", Icon: OrdersIcon },
-    { href: "/services", label: "Catalogue", Icon: CatalogIcon, center: true },
+    { href: "/catalogue", label: "Catalogue", Icon: CatalogIcon, center: true },
     { href: user ? "/dashboard/support" : "/login", label: "Support", Icon: SupportIcon },
     { href: user ? "/dashboard/account" : "/login", label: "Compte", Icon: AccountIcon },
   ];

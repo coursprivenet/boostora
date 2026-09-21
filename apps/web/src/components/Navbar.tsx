@@ -104,8 +104,8 @@ export function Navbar() {
           <Link href="/" className={linkClass("/")}>
             Accueil
           </Link>
-          <Link href="/services" className={linkClass("/services")}>
-            Services
+          <Link href="/catalogue" className={linkClass("/catalogue")}>
+            Catalogue
           </Link>
           {!loading && user && (
             <Link href="/dashboard" className={linkClass("/dashboard")}>

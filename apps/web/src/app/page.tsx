@@ -61,10 +61,10 @@ export default function HomePage() {
               Choisissez ce qu&apos;il vous faut, payez facilement par Mobile Money et gardez le contrôle sur votre commande.
             </p>
             <Link
-              href="/services"
+              href="/catalogue"
               className="mt-6 inline-block rounded-lg border-2 border-ink-900 bg-ink-900 px-6 py-3 text-sm font-semibold text-brand-500 transition-colors hover:bg-brand-500 hover:text-ink-900"
             >
-              Voir les services
+              Explorer le catalogue
             </Link>
           </div>
           <HeroIllustration />
@@ -142,7 +142,7 @@ export default function HomePage() {
           Instagram, TikTok, Facebook, YouTube : un catalogue complet t&apos;attend.
         </p>
         <Link
-          href="/services"
+          href="/catalogue"
           className="mt-6 inline-block rounded-lg border-2 border-brand-500 bg-brand-500 px-6 py-3 text-sm font-semibold text-ink-900 transition-colors hover:bg-ink-900 hover:text-brand-500"
         >
           Parcourir le catalogue
